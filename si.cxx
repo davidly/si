@@ -46,6 +46,8 @@
 #include <winioctl.h>
 #include <iphlpapi.h>
 
+bool g_fullInformation = false;
+
 // Microsoft accidentally omitted this from headers decades ago...
 
 #ifndef PROCESSOR_POWER_INFORMATION
@@ -305,7 +307,7 @@ bool AttemptNewAPIForProcessorInfo()
 
     typedef BOOL ( WINAPI *LPFN_GLPIEX )( LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD );
     LPFN_GLPIEX glpi = (LPFN_GLPIEX) GetProcAddress( GetModuleHandleA( "kernel32" ), "GetLogicalProcessorInformationEx" );
-    if ( NULL == glpi ) 
+    if ( 0 == glpi ) 
     {
         printf( "GetLogicalProcessorInformationEx is not supported.\n" );
         return false;
@@ -451,7 +453,7 @@ bool AttemptOldAPIForProcessorInfo()
     DWORD returnLength = 0;
     typedef BOOL ( WINAPI *LPFN_GLPI )( PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD );
     LPFN_GLPI glpi = (LPFN_GLPI) GetProcAddress( GetModuleHandleA( "kernel32" ), "GetLogicalProcessorInformation" );
-    if (NULL == glpi) 
+    if ( 0 == glpi ) 
     {
         printf( "GetLogicalProcessorInformation is not supported.\n" );
         return false;
@@ -798,14 +800,14 @@ bool ShowCPUSpeed()
 {
     typedef HRESULT ( WINAPI *LPFN_CNTPI )( POWER_INFORMATION_LEVEL, PVOID, ULONG, PVOID, ULONG );
     HMODULE hmod = LoadLibraryA( "powrprof.dll" );
-    if ( NULL == hmod )
+    if ( 0 == hmod )
     {
         printf( "\nCan't LoadLibrary powrprof.dll, error %d.\n", GetLastError() );
         return false;
     }
 
     LPFN_CNTPI cntpi = (LPFN_CNTPI) GetProcAddress( hmod, "CallNtPowerInformation" );
-    if ( NULL == cntpi ) 
+    if ( 0 == cntpi ) 
     {
         printf( "\nCallNtPowerInformation is not supported, error %d.\n", GetLastError() );
         FreeLibrary( hmod );
@@ -979,7 +981,7 @@ void ShowNames()
         printf( "unable to get computer name\n" );
 
     HMODULE hmodAdvApi = LoadLibraryA( "advapi32.dll" );
-    if ( NULL == hmodAdvApi )
+    if ( 0 == hmodAdvApi )
     {
         printf( "\nCan't LoadLibrary advapi32.dll, error %d.\n", GetLastError() );
         return;
@@ -1200,48 +1202,52 @@ BOOL WINAPI MonitorEnumProc( HMONITOR mon, HDC hdc, LPRECT rect, LPARAM param )
 
 void ShowMonitors()
 {
-    HMODULE hmod = LoadLibraryA( "user32.dll" );
-    if ( NULL == hmod )
     {
-        printf( "\nCan't LoadLibrary user32.dll, error %d.\n", GetLastError() );
-        return;
-    }
-
-    typedef HRESULT ( WINAPI *LPFN_EDM )( HDC, LPCRECT, MONITORENUMPROC, LPARAM );
-    LPFN_EDM edm = (LPFN_EDM) GetProcAddress( hmod, "EnumDisplayMonitors" );
-    if ( edm )
-    {
-        printf( "monitor information via EnumDisplayMonitors:\n" );
-        HRESULT hr = edm( 0, 0, MonitorEnumProc, 0 );
-    }
-    else
-        printf( "Can't get proc address of EnumDisplayMonitors\n" );
-
-    FreeLibrary( hmod );
-
-    HMODULE hmodKernelBase = LoadLibraryA( "kernelbase.dll" );
-    if ( NULL == hmodKernelBase )
-    {
-        printf( "\nCan't LoadLibrary kernelbase.dll, error %d.\n", GetLastError() );
-        return;
-    }
-
-    typedef HRESULT ( WINAPI *LPFN_GIDS )( double *);
-    LPFN_GIDS gids = (LPFN_GIDS) GetProcAddress( hmodKernelBase, "GetIntegratedDisplaySize" );
-    if ( gids )
-    {
-        double inches = 0.0;
-        HRESULT hr = gids( & inches );
-        if ( S_OK == hr )
+        HMODULE hmodUser32 = LoadLibraryA( "user32.dll" );
+        if ( 0 == hmodUser32 )
         {
-            printf( "monitor information via GetIntegratedDisplaySize:\n" );
-            printf( "  internal display size in inches:         %lf\n", inches );
+            printf( "\nCan't LoadLibrary user32.dll, error %d.\n", GetLastError() );
+            return;
         }
+    
+        typedef HRESULT ( WINAPI *LPFN_EDM )( HDC, LPCRECT, MONITORENUMPROC, LPARAM );
+        LPFN_EDM edm = (LPFN_EDM) GetProcAddress( hmodUser32, "EnumDisplayMonitors" );
+        if ( edm )
+        {
+            printf( "monitor information via EnumDisplayMonitors:\n" );
+            HRESULT hr = edm( 0, 0, MonitorEnumProc, 0 );
+        }
+        else
+            printf( "Can't get proc address of EnumDisplayMonitors\n" );
+    
+        FreeLibrary( hmodUser32 );
     }
-    else
-        printf( "Can't get proc address of GetIntegratedDisplaySize" );
 
-    FreeLibrary( hmodKernelBase );
+    {
+        HMODULE hmodKernelBase = LoadLibraryA( "kernelbase.dll" );
+        if ( 0 == hmodKernelBase )
+        {
+            printf( "Can't LoadLibrary kernelbase.dll, error %d.\n", GetLastError() );
+            return;
+        }
+    
+        typedef HRESULT ( WINAPI *LPFN_GIDS )( double * );
+        LPFN_GIDS gids = (LPFN_GIDS) GetProcAddress( hmodKernelBase, "GetIntegratedDisplaySize" );
+        if ( gids )
+        {
+            double inches = 0.0;
+            HRESULT hr = gids( & inches );
+            if ( S_OK == hr )
+            {
+                printf( "monitor information via GetIntegratedDisplaySize:\n" );
+                printf( "  internal display size in inches:         %lf\n", inches );
+            }
+        }
+        else
+            printf( "Can't get proc address of GetIntegratedDisplaySize" );
+    
+        FreeLibrary( hmodKernelBase );
+    }
 } //ShowMonitors
 
 #if defined( _M_IX86 ) || defined( _M_X64 )
@@ -1358,6 +1364,38 @@ void ShowFeatures( const char * banner, int i_bits, const char * flags[] )
 
     printf( "\n" );
 } //ShowFeatures
+
+void ShowAssoc( unsigned int x )
+{
+    printf( "%#04x == ", x );
+    if ( 1 == x )
+        printf( "direct mapped" );
+    else if ( 0xff == x )
+        printf( "fully associative" );
+    else
+        printf( "n-way associative" );
+
+    printf( "\n" );
+} //ShowAssoc
+
+const char * L23Assoc[] = {
+    "disabled",
+    "1 way (direct mapped)",
+    "2 ways",
+    "reserved",
+    "4 ways",
+    "reserved",
+    "8 ways",
+    "reserved"
+    "16 ways",
+    "reserved",
+    "32 ways",
+    "48 ways",
+    "64 ways",
+    "96 ways",
+    "128 ways",
+    "fully associative",
+};
 
 void ShowCPUID()
 {
@@ -1478,7 +1516,7 @@ void ShowCPUID()
         }
     }
 
-    if ( highestFunction >= 7 )
+    if ( g_fullInformation && highestFunction >= 7 )
     {
         __cpuidex( vals, 7, 0 );
         int ebx = vals[1];
@@ -1487,6 +1525,171 @@ void ShowCPUID()
         ShowFeatures( "  features 7/0 ecx:                        ", ecx, ecxFlags70 );
         int edx = vals[3];
         ShowFeatures( "  features 7/0 edx:                        ", edx, edxFlags70 );
+    }
+
+    if ( g_fullInformation && highestExtendedFunction >= 0x80000005 && ( !strcmp( cpumake, "AuthenticAMD" ) ) )
+    {
+        __cpuid( vals, 0x80000005 );
+
+        // eax 4MB entries
+
+        unsigned int eax = vals[0];
+        if ( 0 != eax )
+        {
+            printf( "  l1 2 and 4 meg cache and tlb identifiers:\n" );
+    
+            unsigned int assocL1 = ( eax >> 24 ) & 0xff;
+            printf( "    data associativity:                    " );
+            ShowAssoc( assocL1 );
+    
+            unsigned int twoMBTLB = ( eax >> 16 ) & 0xff;
+            printf( "    data tlb entries for 2mb pages:        %d\n", twoMBTLB );
+    
+            assocL1 = ( eax >> 8 ) & 0xff;
+            printf( "    code associativity:                    " );
+            ShowAssoc( assocL1 );
+    
+            twoMBTLB = eax & 0xff;
+            printf( "    code tlb entries for 2mb pages:        %d\n", twoMBTLB );
+        }
+
+        // ebx 4k entries
+
+        unsigned int ebx = vals[1];
+        if ( 0 != ebx )
+        {
+            printf( "  l1 4k page cache and tlb identifiers:\n" );
+    
+            unsigned int assocL1 = ( ebx >> 24 ) & 0xff;
+            printf( "    data associativity:                    " );
+            ShowAssoc( assocL1 );
+    
+            unsigned int fourkSize = ( ebx >> 16 ) & 0xff;
+            printf( "    data 4k tlb entries:                   %d\n", fourkSize );
+    
+            assocL1 = ( ebx >> 8 ) & 0xff;
+            printf( "    code associativity:                    " );
+            ShowAssoc( assocL1 );
+    
+            fourkSize = ebx & 0xff;
+            printf( "    code 4k tlb entries:                   %d\n", fourkSize );
+        }
+
+        // ecx data cache and tlb identifies
+
+        unsigned int ecx = vals[2];
+        if ( 0 != ecx )
+        {
+            printf( "  l1 data cache and identifiers:\n" );
+    
+            unsigned int sizeK = ( ecx >> 24 ) & 0xff;
+            printf( "    data size in kb:                       %d\n", sizeK );
+    
+            unsigned int assoc = ( ecx >> 16 ) & 0xff;
+            printf( "    data associativity:                    " );
+            ShowAssoc( assoc );
+    
+            unsigned int cachelines = ( ecx >> 8 ) & 0xff;
+            printf( "    cache lines per tag:                   %d\n", cachelines );
+    
+            unsigned cachelinesize = ecx & 0xff;
+            printf( "    cache line size:                       %d\n", cachelinesize );
+        }
+
+        // edx code cache and tlb identifies
+
+        unsigned int edx = vals[3];
+        if ( 0 != edx )
+        {
+            printf( "  l1 code cache and identifiers:\n" );
+    
+            unsigned int sizeK = ( edx >> 24 ) & 0xff;
+            printf( "    code size in kb:                       %d\n", sizeK );
+    
+            unsigned int assoc = ( edx >> 16 ) & 0xff;
+            printf( "    code associativity:                    " );
+            ShowAssoc( assoc );
+    
+            unsigned int cachelines = ( edx >> 8 ) & 0xff;
+            printf( "    cache lines per tag:                   %d\n", cachelines );
+    
+            unsigned cachelinesize = edx & 0xff;
+            printf( "    cache line size:                       %d\n", cachelinesize );
+        }
+    }
+
+    if ( g_fullInformation && highestExtendedFunction >= 0x80000006 )
+    {
+        __cpuid( vals, 0x80000006 );
+
+        unsigned int eax = vals[ 0 ];
+        if ( 0 != eax && ( !strcmp( cpumake, "AuthenticAMD" ) ) )
+        {
+            printf( "  l2 cache 2 and 4 mb:\n" );
+    
+            unsigned int l2_2and4megDataAssoc = ( eax >> 28 ) & 0xf;
+            unsigned int l2_2and4megDataTLB = ( eax >> 16 ) & 0xfff;
+            printf( "    data associativity:                    %d == %s\n", l2_2and4megDataAssoc, L23Assoc[ l2_2and4megDataAssoc ] );
+            printf( "    data tlb entries for 2mb pages:        %d\n", l2_2and4megDataTLB );
+    
+            unsigned int l2_2and4megCodeAssoc = ( eax >> 12 ) & 0xf;
+            unsigned int l2_2and4megCodeTLB = ( eax ) & 0xfff;
+            printf( "    code associativity:                    %d == %s\n", l2_2and4megCodeAssoc, L23Assoc[ l2_2and4megCodeAssoc ] );
+            printf( "    code tlb entries for 2mb pages:        %d\n", l2_2and4megCodeTLB );
+        }
+
+        unsigned int ebx = vals[ 1 ];
+        if ( 0 != ebx && ( !strcmp( cpumake, "AuthenticAMD" ) ) )
+        {
+            printf( "  l2 cache for 4kb pages:\n" );
+    
+            unsigned int l2_4kDataAssoc = ( ebx >> 28 ) & 0xf;
+            unsigned int l2_4kDataTLB = ( ebx >> 16 ) & 0xfff;
+            printf( "    data associativity:                    %d == %s\n", l2_4kDataAssoc, L23Assoc[ l2_4kDataAssoc ] );
+            printf( "    data tlb entries for 4k pages:         %d\n", l2_4kDataTLB );
+    
+            unsigned int l2_4kCodeAssoc = ( ebx >> 12 ) & 0xf;
+            unsigned int l2_4kCodeTLB = ( ebx ) & 0xfff;
+            printf( "    code associativity:                    %d == %s\n", l2_4kCodeAssoc, L23Assoc[ l2_4kCodeAssoc ] );
+            printf( "    code tlb entries for 4k pages:         %d\n", l2_4kCodeTLB );
+        }
+
+        unsigned int ecx = vals[ 2 ];
+        if ( 0 != ecx ) // Intel and AMD
+        {
+            printf( "  l2 cache in kb:\n" );
+
+            unsigned int l2_sizekb = ( ecx >> 16 ) & 0xffff;
+            printf( "    size in kb:                            %d\n", l2_sizekb );
+
+            unsigned int l2_assoc = ( ecx >> 12 ) & 0xf;
+            printf( "    associativity:                         %s\n", L23Assoc[ l2_assoc ] );
+
+            unsigned int l2_linesPerTag = ( ecx >> 8 ) & 0xf;
+            printf( "    lines per tag:                         %d\n", l2_linesPerTag );
+
+            unsigned int l2_linesize = ( ecx & 0xff );
+            printf( "    line size in bytes:                    %d\n", l2_linesize );
+        }
+
+        unsigned int edx = vals[ 3 ];
+        if ( 0 != edx && ( !strcmp( cpumake, "AuthenticAMD" ) ) )
+        {
+            printf( "  l3 cache:\n" );
+
+            // I'm getting an inaccurate number for l3_size
+            unsigned int l3_size = ( edx >> 18 ) & 0x3fff; // 14 bits
+            printf( "    size in range:                         %d <= X < %d\n", 512 * l3_size, 512 * ( 1 + l3_size ) );
+
+            unsigned int l3_assoc = ( edx >> 12 ) & 0xf;
+            printf( "    associativity:                         %s\n", L23Assoc[ l3_assoc ] );
+
+            unsigned int l3_linesPerTag = ( edx >> 8 ) & 0xf;
+            printf( "    lines per tag:                         %d\n", l3_linesPerTag );
+
+            unsigned int l3_linesize = ( edx & 0xff );
+            printf( "    line size in bytes:                    %d\n", l3_linesize );
+        }
     }
 
     if ( highestExtendedFunction >= 0x80000008 )
@@ -1511,10 +1714,97 @@ void ShowCPUID()
     }
 } //ShowCPUID
 
+void showchar( char ch )
+{
+    if ( ( 0xff == ch ) || ( ( ch >= 0 ) && ( ch <= 0x1f ) ) )
+        ch = '.';
+    printf( "%c", ch );
+} //showchar
+
+void showvals( int fun, int * vals )
+{
+    printf( "  %#010x: %#010x %#010x %#010x %#010x        ", fun, vals[0], vals[1], vals[2], vals[3] );
+
+    for ( int v = 0; v < 4; v++ )
+    {
+        unsigned x = vals[ v ];
+        showchar( x & 0xff );
+        showchar( ( x >> 8 ) & 0xff );
+        showchar( ( x >> 16 ) & 0xff );
+        showchar( ( x >> 24 ) & 0xff );
+
+        printf( " " );
+    }
+
+    printf( "\n" );
+} //showvals
+
+void ShowAllCPUID()
+{
+    printf( "all cpu information from cpuid, function: eax ebx ecx edx:\n" );
+    int vals[ 4 ];  // eax, ebx, ecx, edx return values
+
+    __cpuid( vals, 0 );
+    int highestFunction = vals[ 0 ];
+
+    for ( int i = 0; i <= highestFunction; i++ )
+    {
+        __cpuid( vals, i );
+        showvals( i, vals );
+    }
+
+    __cpuid( vals, 0x80000000 );
+    unsigned int highestExtendedFunction = vals[ 0 ];
+
+    // older CPUs return random values, so do some basic validation
+
+    if ( ( highestExtendedFunction >= 0x80000000 ) && ( ( highestExtendedFunction - 0x80000000 ) < 0x100 ) )
+    {
+        for ( int i = 0x80000000; i <= highestExtendedFunction; i++ )
+        {
+            __cpuid( vals, i );
+            showvals( i, vals );
+        }
+    }
+} //ShowAllCPUID
+
 #endif // defined( _M_IX86 ) || defined( _M_X64 )
 
-extern "C" int __cdecl wmain( int argc, WCHAR * argv[] )
+void usage()
 {
+    printf( "si [-c] [-f]\n" );
+    printf( "System Information\n" );
+    printf( "    arguments:    [-c]       Show all paramaterless cpuid information unparsed\n" );
+    printf( "                  [-f]       Show full information -- this is more verbose\n" );
+    exit( 0 );
+} //usage
+
+extern "C" int __cdecl main( int argc, char * argv[] )
+{
+    bool allCpuid = false;
+
+    for ( int a = 1; a < argc; a++ )
+    {
+        const char * parg = argv[ a ];
+
+        if ( '/' == *parg || '-' == *parg )
+        {
+            char c = tolower( parg[1] );
+
+            if ( 'c' == c )
+                allCpuid = true;
+            else if ( 'f' == c )
+                g_fullInformation = true;
+            else
+                usage();
+        }
+        else
+            usage();
+    }
+
+    if ( allCpuid )
+        ShowAllCPUID();
+
     ShowNames();
 
     bool ok = AttemptNewAPIForProcessorInfo();
@@ -1531,5 +1821,5 @@ extern "C" int __cdecl wmain( int argc, WCHAR * argv[] )
     ShowDrives();
 
     return 0;
-} //wmain
+} //main
 
