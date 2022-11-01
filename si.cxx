@@ -123,10 +123,41 @@ bool g_fullInformation = false;
 
 #endif
 
+// Use fake versions of these since their existence and definitions change between versions of the sdk
+
+typedef enum _MACHINE_ATTRIBUTES_FAKE {
+    UserEnabledFake = 0x00000001,
+    KernelEnabledFake = 0x00000002,
+    Wow64ContainerFake = 0x00000004
+} MACHINE_ATTRIBUTES_FAKE;
+
+typedef struct _PROCESS_MACHINE_INFORMATION_FAKE {
+    USHORT             ProcessMachine;
+    USHORT             Res0;
+    MACHINE_ATTRIBUTES_FAKE MachineAttributes;
+} PROCESS_MACHINE_INFORMATION_FAKE;
+
+typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
+    ProcessMemoryPriorityFake,
+    ProcessMemoryExhaustionInfoFake,
+    ProcessAppMemoryInfoFake,
+    ProcessInPrivateInfoFake,
+    ProcessPowerThrottlingFake,
+    ProcessReservedValue1Fake,
+    ProcessTelemetryCoverageInfoFake,
+    ProcessProtectionLevelInfoFake,
+    ProcessLeapSecondInfoFake,
+    ProcessMachineTypeInfoFake,
+    ProcessInformationClassMaxFake
+} PROCESS_INFORMATION_CLASS_FAKE;
+
 // Enable building with VS6 tools so the binary can run in Win98.
 // That means replicating all of these definitions.
 
 #if _MSC_VER == 1200
+
+    typedef HANDLE DPI_AWARENESS_CONTEXT;
+    #define DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 ((DPI_AWARENESS_CONTEXT)-4)
 
     #ifndef LTP_PC_SMT
         #define LTP_PC_SMT 0x1
@@ -437,7 +468,7 @@ bool AttemptNewAPIForProcessorInfo()
         pNext += ptr->Size;
     }
 
-    printf( "  number of processor L1 / L2 / L3 caches: %d / %d / %d\n", processorL1CacheCount,processorL2CacheCount, processorL3CacheCount );
+    printf( "  number of processor L1 / L2 / L3 caches: %d / %d / %d\n", processorL1CacheCount, processorL2CacheCount, processorL3CacheCount );
     printf( "  number of NUMA nodes:                    %d\n", numaNodeCount );
     printf( "  number of physical processor packages:   %d\n", processorPackageCount);
     printf( "  number of processor cores:               %d\n", processorCoreCount );
@@ -568,7 +599,7 @@ bool AttemptOldAPIForProcessorInfo()
     }
 
     printf( "processor info via GetLogicalProcessorInformation:\n" );
-    printf( "  number of processor L1 / L2 / L3 caches: %d / %d / %d\n", processorL1CacheCount,processorL2CacheCount, processorL3CacheCount );
+    printf( "  number of processor L1 / L2 / L3 caches: %d / %d / %d\n", processorL1CacheCount, processorL2CacheCount, processorL3CacheCount );
     printf( "  number of NUMA nodes:                    %d\n", numaNodeCount );
     printf( "  number of physical processor packages:   %d\n", processorPackageCount);
     printf( "  number of processor cores:               %d\n", processorCoreCount );
@@ -1770,6 +1801,48 @@ void ShowAllCPUID()
 
 #endif // defined( _M_IX86 ) || defined( _M_X64 )
 
+const char * ArchitectureString( USHORT m )
+{
+    if ( 0x014c == m )
+        return "Intel 386";
+    if ( 0x8664 == m )
+        return "AMD 64";
+    if ( 0xAA64 == m )
+        return "Arm 64";
+    if ( 0 == m )
+        return "native";
+    return "(not recognized)";
+} //ArchectureString
+
+void ShowArchitectureInfo()
+{
+    USHORT processMachine = 0, nativeMachine = 0;
+    typedef BOOL ( WINAPI *LPFN_IW64P2 )( HANDLE, USHORT *, USHORT * );
+    LPFN_IW64P2 iw64p2 = (LPFN_IW64P2) GetProcAddress( GetModuleHandleA( "kernel32" ), "IsWow64Process2" );
+    BOOL ok_iw64p2 = FALSE;
+    if ( 0 != iw64p2 )
+        ok_iw64p2 = iw64p2( GetCurrentProcess(), &processMachine, &nativeMachine );
+
+    typedef BOOL ( WINAPI *LPFN_GPI )( HANDLE, PROCESS_INFORMATION_CLASS_FAKE, LPVOID, DWORD );
+    LPFN_GPI gpi = (LPFN_GPI) GetProcAddress( GetModuleHandleA( "kernel32" ), "GetProcessInformation" );
+    if ( 0 != gpi )
+    {
+        PROCESS_MACHINE_INFORMATION_FAKE info = { 0 };
+        BOOL ok_gpi = gpi( GetCurrentProcess(), ProcessMachineTypeInfoFake, &info, sizeof( info ) );
+        if ( ok_gpi )
+            processMachine = info.ProcessMachine; // necessary because iw64p2 returns 0, not something interesting
+
+    }
+
+    if ( ok_iw64p2 )
+    {
+        printf( "process and system architecture via IsWow64Process2 and GetProcessInformation:\n" );
+        printf( "  process / system architecture:           %#x == %s / %#x == %s\n",
+                processMachine, ArchitectureString( processMachine ),
+                nativeMachine, ArchitectureString( nativeMachine ) );
+    }
+} //ShowArchitectureInfo
+
 void usage()
 {
     printf( "si [-c] [-f]\n" );
@@ -1781,6 +1854,19 @@ void usage()
 
 extern "C" int __cdecl main( int argc, char * argv[] )
 {
+    // set this early to get physical numbers for monitor rectangles
+
+    HMODULE hmodUser32 = LoadLibraryA( "user32.dll" );
+    if ( hmodUser32 )
+    {
+        typedef BOOL ( WINAPI *LPFN_SPDAC )( DPI_AWARENESS_CONTEXT );
+        LPFN_SPDAC spdac = (LPFN_SPDAC) GetProcAddress( hmodUser32, "SetProcessDpiAwarenessContext" );
+        if ( spdac )
+            spdac( DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 );
+
+        FreeLibrary( hmodUser32 );
+    }
+
     bool allCpuid = false;
 
     for ( int a = 1; a < argc; a++ )
@@ -1802,8 +1888,10 @@ extern "C" int __cdecl main( int argc, char * argv[] )
             usage();
     }
 
+#if defined( _M_IX86 ) || defined( _M_X64 )
     if ( allCpuid )
         ShowAllCPUID();
+#endif
 
     ShowNames();
 
@@ -1811,10 +1899,14 @@ extern "C" int __cdecl main( int argc, char * argv[] )
     if ( !ok )
         ok = AttemptOldAPIForProcessorInfo();
 
+#if defined( _M_IX86 ) || defined( _M_X64 )
     ShowCPUID();
+#endif
+
     ShowSystemMemory();
     ShowCPUSpeed();
     ShowSystemInfo();
+    ShowArchitectureInfo();
     ShowNetworkAdapters();
     ShowOSVersion();
     ShowMonitors();
