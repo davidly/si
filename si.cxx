@@ -350,6 +350,12 @@ const char * CacheTypeString( PROCESSOR_CACHE_TYPE t )
     return "UNKNOWN";
 } //CacheTypeString
 
+struct EfficiencyAndMask
+{
+    BYTE efficiencyClass;
+    KAFFINITY mask;
+};
+
 bool AttemptNewAPIForProcessorInfo()
 {
     DWORD returnLength = 0;
@@ -395,6 +401,9 @@ bool AttemptNewAPIForProcessorInfo()
     vector<PROCESSOR_RELATIONSHIP> unique_pr;
     vector<DWORD> prcounts;
 
+    BYTE maxEfficiency = 0;
+    vector<EfficiencyAndMask> efficiencyAndMasks;
+
     bool shownL1 = false, shownL2 = false, shownL3 = false;
     DWORD numaNodeCount = 0;
     DWORD processorPackageCount = 0;
@@ -417,7 +426,14 @@ bool AttemptNewAPIForProcessorInfo()
             }
             case RelationProcessorCore:
             {
-                PROCESSOR_RELATIONSHIP pr = ptr->Processor;
+                PROCESSOR_RELATIONSHIP & pr = ptr->Processor;
+
+                EfficiencyAndMask eam;
+                eam.efficiencyClass = pr.EfficiencyClass;
+                eam.mask = pr.GroupMask[ 0 ].Mask;
+                efficiencyAndMasks.push_back( eam );
+                if ( pr.EfficiencyClass > maxEfficiency )
+                    maxEfficiency = pr.EfficiencyClass;
 
                 bool found = false;
                 for ( size_t i = 0; i < unique_pr.size(); i++ )
@@ -439,7 +455,6 @@ bool AttemptNewAPIForProcessorInfo()
                     prcounts.push_back( 1 );
                 }
 
-    
                 // A hyperthreaded core supplies more than one logical processor.
 
                 logicalProcessorCount += ( LTP_PC_SMT == ptr->Processor.Flags ) ? 2 : 1;
@@ -542,6 +557,21 @@ bool AttemptNewAPIForProcessorInfo()
     printf( "  number of physical processor packages:   %d\n", processorPackageCount);
     printf( "  number of physical processors:           %d\n", processorCount );
     printf( "  number of logical processors:            %d\n", logicalProcessorCount );
+
+    for ( BYTE e = 0; e <= maxEfficiency; e++ )
+    {
+        if ( 0 == maxEfficiency )
+            printf( "  core masks at efficiency %d:             ", e );
+        else
+            printf( "  core masks at efficiency %d (%s):    ", e, ( 0 == e ) ? "slower" : "faster" );
+
+        for ( size_t x = 0; x < efficiencyAndMasks.size(); x++ )
+        {
+            if ( e == efficiencyAndMasks[ x ].efficiencyClass )
+                printf( " %#llx", (ULONGLONG) efficiencyAndMasks[ x ].mask );
+        }
+        printf( "\n" );
+    }
     
     free( buffer );
 
