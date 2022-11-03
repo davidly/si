@@ -43,6 +43,7 @@
 #endif
 
 #include <windows.h>
+#include <winreg.h>
 #include <winioctl.h>
 #include <iphlpapi.h>
 
@@ -972,10 +973,10 @@ void ShowNetworkAdapters()
         {
             printf( "  adapter description:                     %s\n", pAdapter->Description );
             printf( "    adapter name:                          %s\n", pAdapter->AdapterName );
-            printf( "    ip address / subnet mask / gateway:    %s / %s / %s\n", pAdapter->IpAddressList.IpAddress.String,
-                                                                                 pAdapter->IpAddressList.IpMask.String,
-                                                                                 pAdapter->GatewayList.IpAddress.String );
-            printf( "    dhcp enabled:                          %s\n", pAdapter->DhcpEnabled ? "true" : "false" );
+            printf( "    ipaddr / subnet mask / gateway / dhcp: %s / %s / %s / %s\n", pAdapter->IpAddressList.IpAddress.String,
+                                                                                      pAdapter->IpAddressList.IpMask.String,
+                                                                                      pAdapter->GatewayList.IpAddress.String,
+                                                                                      pAdapter->DhcpEnabled ? "true" : "false" );
                                                               
             printf( "    adapter (mac) address:                 " );
             for ( int i = 0; i < pAdapter->AddressLength; i++ )
@@ -1843,11 +1844,49 @@ void ShowArchitectureInfo()
     }
 } //ShowArchitectureInfo
 
+void ShowProcessorNameString()
+{
+    HMODULE hmodAdvapi32 = LoadLibraryA( "advapi32.dll" );
+    if ( hmodAdvapi32 )
+    {
+        typedef LSTATUS ( WINAPI *LPFN_ROKE )( HKEY, LPCSTR, DWORD, REGSAM, PHKEY );
+        LPFN_ROKE roke = (LPFN_ROKE) GetProcAddress( hmodAdvapi32, "RegOpenKeyExA" );
+
+        typedef LSTATUS ( WINAPI *LPFN_RQVE )( HKEY, LPCSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD );
+        LPFN_RQVE rqve = (LPFN_RQVE) GetProcAddress( hmodAdvapi32, "RegQueryValueExA" );
+
+        typedef LSTATUS ( WINAPI *LPFN_RCK )( HKEY );
+        LPFN_RCK rck = (LPFN_RCK) GetProcAddress( hmodAdvapi32, "RegCloseKey" );
+
+        if ( roke && rqve && rck )
+        {
+            char buf[ 50 ] = {0}; // guaranteed to be 48 chars long
+            const char *csName = "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0";
+            HKEY hKey;
+            if ( ERROR_SUCCESS == roke( HKEY_LOCAL_MACHINE, csName, 0, KEY_READ, &hKey ) )
+            {
+                DWORD gotType, gotSize = _countof( buf );
+                if ( !rqve( hKey, "ProcessorNameString", 0, &gotType, (PBYTE) buf, &gotSize ))
+                {
+                    if ( REG_SZ == gotType )
+                        printf( "processor name string via registry:        %s\n", buf );
+                }
+                rck( hKey );
+            }
+        }
+
+        FreeLibrary( hmodAdvapi32 );
+    }
+
+
+
+} //ShowProcessorNameString
+
 void usage()
 {
     printf( "si [-c] [-f]\n" );
     printf( "System Information\n" );
-    printf( "    arguments:    [-c]       Show all paramaterless cpuid information unparsed\n" );
+    printf( "    arguments:    [-c]       Show all paramaterless cpuid information unparsed (x86/x64 only)\n" );
     printf( "                  [-f]       Show full information -- this is more verbose\n" );
     exit( 0 );
 } //usage
@@ -1903,6 +1942,7 @@ extern "C" int __cdecl main( int argc, char * argv[] )
     ShowCPUID();
 #endif
 
+    ShowProcessorNameString();
     ShowSystemMemory();
     ShowCPUSpeed();
     ShowSystemInfo();
@@ -1914,4 +1954,6 @@ extern "C" int __cdecl main( int argc, char * argv[] )
 
     return 0;
 } //main
+
+
 
