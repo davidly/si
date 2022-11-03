@@ -47,6 +47,9 @@
 #include <winioctl.h>
 #include <iphlpapi.h>
 
+#include <vector>
+using namespace std;
+
 bool g_fullInformation = false;
 
 // Microsoft accidentally omitted this from headers decades ago...
@@ -168,6 +171,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
 
     typedef unsigned int ULONG_PTR;
     typedef HRESULT NTSTATUS;
+    typedef LONG LSTATUS;
     
     #define PROCESSOR_ARCHITECTURE_AMD64 9
 
@@ -333,6 +337,19 @@ DWORD CountSetBits( ULONG_PTR bitMask )
     return bitSetCount;
 } //CountSetBits
 
+const char * CacheTypeString( PROCESSOR_CACHE_TYPE t )
+{
+    if ( CacheUnified == t )
+        return "unified";
+    if ( CacheInstruction == t )
+        return "instruction";
+    if ( CacheData == t )
+        return "data";
+    if ( CacheTrace == t )
+        return "trace";
+    return "UNKNOWN";
+} //CacheTypeString
+
 bool AttemptNewAPIForProcessorInfo()
 {
     DWORD returnLength = 0;
@@ -373,14 +390,15 @@ bool AttemptNewAPIForProcessorInfo()
         }
     } while ( !done );
 
+    vector<CACHE_RELATIONSHIP> unique_cr;
+    vector<DWORD> crcounts;
+    vector<PROCESSOR_RELATIONSHIP> unique_pr;
+    vector<DWORD> prcounts;
+
     bool shownL1 = false, shownL2 = false, shownL3 = false;
     DWORD numaNodeCount = 0;
-    DWORD processorCoreCount = 0;
-    DWORD logicalProcessorCount = 0;
-    DWORD processorL1CacheCount = 0;
-    DWORD processorL2CacheCount = 0;
-    DWORD processorL3CacheCount = 0;
     DWORD processorPackageCount = 0;
+    DWORD logicalProcessorCount = 0;
     byte * pNext = (byte *) buffer;
     byte * beyond = pNext + returnLength;
 
@@ -389,7 +407,7 @@ bool AttemptNewAPIForProcessorInfo()
     while ( pNext < beyond )
     {
         PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) pNext;
-        
+
         switch ( ptr->Relationship ) 
         {
             case RelationNumaNode:
@@ -399,7 +417,28 @@ bool AttemptNewAPIForProcessorInfo()
             }
             case RelationProcessorCore:
             {
-                processorCoreCount++;
+                PROCESSOR_RELATIONSHIP pr = ptr->Processor;
+
+                bool found = false;
+                for ( size_t i = 0; i < unique_pr.size(); i++ )
+                {
+                    PROCESSOR_RELATIONSHIP & p = unique_pr[ i ];
+
+                    if ( pr.Flags == p.Flags &&
+                         pr.EfficiencyClass == p.EfficiencyClass )
+                    {
+                        found = true;
+                        prcounts[ i ]++;
+                        break;
+                    }
+                }
+
+                if ( !found )
+                {
+                    unique_pr.push_back( pr );
+                    prcounts.push_back( 1 );
+                }
+
     
                 // A hyperthreaded core supplies more than one logical processor.
 
@@ -410,35 +449,39 @@ bool AttemptNewAPIForProcessorInfo()
             {
                 // Cache data is in ptr->Cache, one CACHE_DESCRIPTOR structure for each cache.
     
-                CACHE_RELATIONSHIP * Cache = & ( ptr->Cache );
+                CACHE_RELATIONSHIP & cache = ptr->Cache;
     
-                if ( 1 == Cache->Level )
+                DWORD level = cache.Level;
+                DWORD type = cache.Type;
+                if ( level > 3 || type > 3 )
                 {
-                    if ( !shownL1 )
-                    {
-                        printf( "  L1 cache / line size:                    %dk / %d\n", Cache->CacheSize / 1024, Cache->LineSize );
-                        shownL1 = true;
-                    }
-                    processorL1CacheCount++;
+                    printf( "(unexpected cache level and/or type: %d, %d\n", level, type );
+                    break;
                 }
-                else if ( 2 == Cache->Level )
+
+                bool found = false;
+                for ( size_t i = 0; i < unique_cr.size(); i++ )
                 {
-                    if ( !shownL2 )
+                    CACHE_RELATIONSHIP & c = unique_cr[ i ];
+
+                    if ( c.Level == cache.Level &&
+                         c.Associativity == cache.Associativity &&
+                         c.LineSize == cache.LineSize &&
+                         c.CacheSize == cache.CacheSize &&
+                         c.Type == cache.Type )
                     {
-                        printf( "  L2 cache / line size:                    %dk / %d\n", Cache->CacheSize / 1024, Cache->LineSize );
-                        shownL2 = true;
+                        found = true;
+                        crcounts[ i ]++;
+                        break;
                     }
-                    processorL2CacheCount++;
                 }
-                else if ( 3 == Cache->Level )
+
+                if ( !found )
                 {
-                    if ( !shownL3 )
-                    {
-                        printf( "  L3 cache / line size:                    %dk / %d\n", Cache->CacheSize / 1024, Cache->LineSize );
-                        shownL3 = true;
-                    }
-                    processorL3CacheCount++;
+                    unique_cr.push_back( cache );
+                    crcounts.push_back( 1 );
                 }
+
                 break;
             }
             case RelationProcessorPackage:
@@ -469,10 +512,35 @@ bool AttemptNewAPIForProcessorInfo()
         pNext += ptr->Size;
     }
 
-    printf( "  number of processor L1 / L2 / L3 caches: %d / %d / %d\n", processorL1CacheCount, processorL2CacheCount, processorL3CacheCount );
+    printf( "  cache count, size, line size:\n" );
+    for ( size_t i = 0; i < unique_cr.size(); i++ )
+    {
+        CACHE_RELATIONSHIP & cr = unique_cr[ i ];
+        int typelen = strlen( CacheTypeString( cr.Type ) );
+
+        printf(  "    L%d %s: %*s                      %d / %dK / %d\n",
+                 cr.Level,
+                 CacheTypeString( cr.Type ),
+                 12 - typelen, " ",
+                 crcounts[ i ],
+                 cr.CacheSize / 1024,
+                 cr.LineSize );
+    }
+
+    DWORD processorCount = 0;
+    for ( size_t x = 0; x < unique_pr.size(); x++ )
+    {
+        PROCESSOR_RELATIONSHIP pr = unique_pr[ x ];
+        printf( "  core count / efficiency / hyperthreads:  %d / %d / %s\n",
+                prcounts[ x ],
+                pr.EfficiencyClass,
+                0 == pr.Flags ? "no" : LTP_PC_SMT == pr.Flags ? "yes" : "unknown" );
+        processorCount += prcounts[ x ];
+    }
+
     printf( "  number of NUMA nodes:                    %d\n", numaNodeCount );
     printf( "  number of physical processor packages:   %d\n", processorPackageCount);
-    printf( "  number of processor cores:               %d\n", processorCoreCount );
+    printf( "  number of physical processors:           %d\n", processorCount );
     printf( "  number of logical processors:            %d\n", logicalProcessorCount );
     
     free( buffer );
@@ -1844,7 +1912,51 @@ void ShowArchitectureInfo()
     }
 } //ShowArchitectureInfo
 
-void ShowProcessorNameString()
+typedef LSTATUS ( WINAPI *LPFN_RQVE )( HKEY, LPCSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD );
+
+void ShowRegString( LPFN_RQVE rqve, HKEY hKey, const char * name )
+{
+    char buf[ 100 ] = {0};
+    DWORD keyType, keySize = _countof( buf );
+    int len = strlen( name );
+    if ( ( !rqve( hKey, name, 0, &keyType, (PBYTE) buf, &keySize ) ) && ( REG_SZ == keyType ) )
+        printf( "  %s: %-*s  %s\n", name, 37 - len, " ", buf );
+} //ShowRegString
+
+void ShowRegCentralProcessor()
+{
+    HMODULE hmodAdvapi32 = LoadLibraryA( "advapi32.dll" );
+    if ( hmodAdvapi32 )
+    {
+        typedef LSTATUS ( WINAPI *LPFN_ROKE )( HKEY, LPCSTR, DWORD, REGSAM, PHKEY );
+        LPFN_ROKE roke = (LPFN_ROKE) GetProcAddress( hmodAdvapi32, "RegOpenKeyExA" );
+
+        LPFN_RQVE rqve = (LPFN_RQVE) GetProcAddress( hmodAdvapi32, "RegQueryValueExA" );
+
+        typedef LSTATUS ( WINAPI *LPFN_RCK )( HKEY );
+        LPFN_RCK rck = (LPFN_RCK) GetProcAddress( hmodAdvapi32, "RegCloseKey" );
+
+        if ( roke && rqve && rck )
+        {
+            const char *csName = "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0";
+            HKEY hKey;
+            if ( ERROR_SUCCESS == roke( HKEY_LOCAL_MACHINE, csName, 0, KEY_READ, &hKey ) )
+            {
+                printf( "processor info via registry key HKLM\\%s:\n", csName );
+
+                ShowRegString( rqve, hKey, "Identifier" );
+                ShowRegString( rqve, hKey, "ProcessorNameString" );
+                ShowRegString( rqve, hKey, "VendorIdentifier" );
+
+                rck( hKey );
+            }
+        }
+
+        FreeLibrary( hmodAdvapi32 );
+    }
+} //ShowRegCentralProcessor
+
+void ShowRegBiosInfo()
 {
     HMODULE hmodAdvapi32 = LoadLibraryA( "advapi32.dll" );
     if ( hmodAdvapi32 )
@@ -1860,27 +1972,31 @@ void ShowProcessorNameString()
 
         if ( roke && rqve && rck )
         {
-            char buf[ 50 ] = {0}; // guaranteed to be 48 chars long
-            const char *csName = "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0";
+            const char *csName = "HARDWARE\\DESCRIPTION\\System\\BIOS";
             HKEY hKey;
             if ( ERROR_SUCCESS == roke( HKEY_LOCAL_MACHINE, csName, 0, KEY_READ, &hKey ) )
             {
-                DWORD gotType, gotSize = _countof( buf );
-                if ( !rqve( hKey, "ProcessorNameString", 0, &gotType, (PBYTE) buf, &gotSize ))
-                {
-                    if ( REG_SZ == gotType )
-                        printf( "processor name string via registry:        %s\n", buf );
-                }
+                printf( "bios info via registry key HKLM\\%s:\n", csName );
+
+                ShowRegString( rqve, hKey, "BaseBoardManufacturer" );
+                ShowRegString( rqve, hKey, "BaseBoardProduct" );
+                ShowRegString( rqve, hKey, "BaseBoardVersion" );
+                ShowRegString( rqve, hKey, "BiosVendor" );
+                ShowRegString( rqve, hKey, "BiosReleaseDate" );
+                ShowRegString( rqve, hKey, "BiosVersion" );
+                ShowRegString( rqve, hKey, "SystemFamily" );
+                ShowRegString( rqve, hKey, "SystemManufacturer" );
+                ShowRegString( rqve, hKey, "SystemProductName" );
+                ShowRegString( rqve, hKey, "SystemDKU" );
+                ShowRegString( rqve, hKey, "SystemVersion" );
+
                 rck( hKey );
             }
         }
 
         FreeLibrary( hmodAdvapi32 );
     }
-
-
-
-} //ShowProcessorNameString
+} //ShowRegBiosInfo
 
 void usage()
 {
@@ -1942,7 +2058,8 @@ extern "C" int __cdecl main( int argc, char * argv[] )
     ShowCPUID();
 #endif
 
-    ShowProcessorNameString();
+    ShowRegCentralProcessor();
+    ShowRegBiosInfo();
     ShowSystemMemory();
     ShowCPUSpeed();
     ShowSystemInfo();
