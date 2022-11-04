@@ -527,7 +527,7 @@ bool AttemptNewAPIForProcessorInfo()
         pNext += ptr->Size;
     }
 
-    printf( "  cache count, size, line size:\n" );
+    printf( "  cache count / size / line size:\n" );
     for ( size_t i = 0; i < unique_cr.size(); i++ )
     {
         CACHE_RELATIONSHIP & cr = unique_cr[ i ];
@@ -555,7 +555,7 @@ bool AttemptNewAPIForProcessorInfo()
 
     printf( "  number of NUMA nodes:                    %d\n", numaNodeCount );
     printf( "  number of physical processor packages:   %d\n", processorPackageCount);
-    printf( "  number of physical processors:           %d\n", processorCount );
+    printf( "  number of cores / processor units:       %d\n", processorCount );
     printf( "  number of logical processors:            %d\n", logicalProcessorCount );
 
     for ( BYTE e = 0; e <= maxEfficiency; e++ )
@@ -701,7 +701,7 @@ bool AttemptOldAPIForProcessorInfo()
     printf( "  number of processor L1 / L2 / L3 caches: %d / %d / %d\n", processorL1CacheCount, processorL2CacheCount, processorL3CacheCount );
     printf( "  number of NUMA nodes:                    %d\n", numaNodeCount );
     printf( "  number of physical processor packages:   %d\n", processorPackageCount);
-    printf( "  number of processor cores:               %d\n", processorCoreCount );
+    printf( "  number of cores / processor units:       %d\n", processorCoreCount );
     printf( "  number of logical processors:            %d\n", logicalProcessorCount );
     
     free( buffer );
