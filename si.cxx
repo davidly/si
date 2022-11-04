@@ -561,14 +561,14 @@ bool AttemptNewAPIForProcessorInfo()
     for ( BYTE e = 0; e <= maxEfficiency; e++ )
     {
         if ( 0 == maxEfficiency )
-            printf( "  core masks at efficiency %d:             ", e );
+            printf( "  core hex masks at efficiency %d:         ", e );
         else
-            printf( "  core masks at efficiency %d (%s):    ", e, ( 0 == e ) ? "slower" : "faster" );
+            printf( "  core hex masks at efficiency %d (%s):", e, ( 0 == e ) ? "slower" : "faster" );
 
         for ( size_t x = 0; x < efficiencyAndMasks.size(); x++ )
         {
             if ( e == efficiencyAndMasks[ x ].efficiencyClass )
-                printf( " %#llx", (ULONGLONG) efficiencyAndMasks[ x ].mask );
+                printf( " %llx", (ULONGLONG) efficiencyAndMasks[ x ].mask );
         }
         printf( "\n" );
     }
@@ -1614,36 +1614,30 @@ void ShowCPUID()
 
     if ( highestExtendedFunction >= 0x80000004 )
     {
-        __cpuid( vals, 0x80000000 );
-        if ( vals[ 0 ] > 0x80000004 )
-        {
-            int brand[13];
-            brand[12] = 0;
-            __cpuid( vals, 0x80000002 );
-            brand[0] = vals[0];
-            brand[1] = vals[1];
-            brand[2] = vals[2];
-            brand[3] = vals[3];
-            __cpuid( vals, 0x80000003 );
-            brand[4] = vals[0];
-            brand[5] = vals[1];
-            brand[6] = vals[2];
-            brand[7] = vals[3];
-            __cpuid( vals, 0x80000004 );
-            brand[8] = vals[0];
-            brand[9] = vals[1];
-            brand[10] = vals[2];
-            brand[11] = vals[3];
+        int brand[13];
+        brand[12] = 0;
+        __cpuid( vals, 0x80000002 );
+        brand[0] = vals[0];
+        brand[1] = vals[1];
+        brand[2] = vals[2];
+        brand[3] = vals[3];
+        __cpuid( vals, 0x80000003 );
+        brand[4] = vals[0];
+        brand[5] = vals[1];
+        brand[6] = vals[2];
+        brand[7] = vals[3];
+        __cpuid( vals, 0x80000004 );
+        brand[8] = vals[0];
+        brand[9] = vals[1];
+        brand[10] = vals[2];
+        brand[11] = vals[3];
 
-            // the brand can have leading spaces -- ignore them
+        // the brand can have leading spaces -- ignore them
 
-            char * pBrand = (char *) brand;
-            while ( ' ' == *pBrand )
-                pBrand++;
-            char acBrand[ 49 ];
-            strcpy( acBrand, pBrand );
-            printf( "  brand:                                   %s\n", acBrand );
-        }
+        char * pBrand = (char *) brand;
+        while ( ' ' == *pBrand )
+            pBrand++;
+        printf( "  brand:                                   %s\n", pBrand );
     }
 
     if ( g_fullInformation && highestFunction >= 7 )
