@@ -28,6 +28,10 @@
 //        (environment setup to use the old compiler/include/lib)
 //        mkdir win98
 //        cl /nologo si.cxx /Ox /Zi /Fewin98\si.exe /link /incremental:no
+//
+//    64-bit Windows 11 on Arm64 with VS2022 / Microsoft (R) C/C++ Optimizing Compiler Version 19.34.31932 for ARM64
+//        mkdir arm64
+//        cl /nologo si.cxx /I:.\ /DDEBUG /EHac /Zi /O2i /Gy /Fe: arm64\si.exe /link /OPT:REF /incremental:no
 //      
 
 #include <stdio.h>
@@ -181,6 +185,68 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
 
     typedef HANDLE HMONITOR;
     typedef BOOL (CALLBACK* MONITORENUMPROC)(HMONITOR, HDC, LPRECT, LPARAM);
+
+    #define IOCTL_STORAGE_QUERY_PROPERTY                CTL_CODE(IOCTL_STORAGE_BASE, 0x0500, METHOD_BUFFERED, FILE_ANY_ACCESS)
+    
+    typedef struct _DEVICE_TRIM_DESCRIPTOR {
+        DWORD       Version;          // keep compatible with STORAGE_DESCRIPTOR_HEADER
+        DWORD       Size;             // keep compatible with STORAGE_DESCRIPTOR_HEADER
+        BOOLEAN     TrimEnabled;
+    } DEVICE_TRIM_DESCRIPTOR, *PDEVICE_TRIM_DESCRIPTOR;
+    
+    typedef struct _DEVICE_SEEK_PENALTY_DESCRIPTOR {
+        DWORD       Version;          // keep compatible with STORAGE_DESCRIPTOR_HEADER
+        DWORD       Size;             // keep compatible with STORAGE_DESCRIPTOR_HEADER
+        BOOLEAN     IncursSeekPenalty;
+    } DEVICE_SEEK_PENALTY_DESCRIPTOR, *PDEVICE_SEEK_PENALTY_DESCRIPTOR;
+    
+    typedef enum _STORAGE_QUERY_TYPE {
+        PropertyStandardQuery = 0,          // Retrieves the descriptor
+        PropertyExistsQuery,                // Used to test whether the descriptor is supported
+        PropertyMaskQuery,                  // Used to retrieve a mask of writeable fields in the descriptor
+        PropertyQueryMaxDefined     // use to validate the value
+    } STORAGE_QUERY_TYPE, *PSTORAGE_QUERY_TYPE;
+    
+    typedef enum _STORAGE_PROPERTY_ID {
+        StorageDeviceProperty = 0,
+        StorageAdapterProperty,
+        StorageDeviceIdProperty,
+        StorageDeviceUniqueIdProperty,              // See storduid.h for details
+        StorageDeviceWriteCacheProperty,
+        StorageMiniportProperty,
+        StorageAccessAlignmentProperty,
+        StorageDeviceSeekPenaltyProperty,
+        StorageDeviceTrimProperty,
+        StorageDeviceWriteAggregationProperty,
+        StorageDeviceDeviceTelemetryProperty,
+        StorageDeviceLBProvisioningProperty,
+        StorageDevicePowerProperty,
+        StorageDeviceCopyOffloadProperty,
+        StorageDeviceResiliencyProperty,
+        StorageDeviceMediumProductType,
+        StorageAdapterRpmbProperty,
+        StorageAdapterCryptoProperty,
+        StorageDeviceIoCapabilityProperty = 48,
+        StorageAdapterProtocolSpecificProperty,
+        StorageDeviceProtocolSpecificProperty,
+        StorageAdapterTemperatureProperty,
+        StorageDeviceTemperatureProperty,
+        StorageAdapterPhysicalTopologyProperty,
+        StorageDevicePhysicalTopologyProperty,
+        StorageDeviceAttributesProperty,
+        StorageDeviceManagementStatus,
+        StorageAdapterSerialNumberProperty,
+        StorageDeviceLocationProperty,
+        StorageDeviceNumaProperty,
+        StorageDeviceZonedDeviceProperty,
+        StorageDeviceUnsafeShutdownCount
+    } STORAGE_PROPERTY_ID, *PSTORAGE_PROPERTY_ID;
+    
+    typedef struct _STORAGE_PROPERTY_QUERY {
+        STORAGE_PROPERTY_ID PropertyId;
+        STORAGE_QUERY_TYPE QueryType;
+        BYTE  AdditionalParameters[1];
+    } STORAGE_PROPERTY_QUERY, *PSTORAGE_PROPERTY_QUERY;
 
     typedef struct _MEMORYSTATUSEX {
         DWORD     dwLength;
@@ -813,6 +879,50 @@ void PartitionSize( char c )
         printf("                          ");
 } //PartitionSize
 
+bool GetDriveInformation( char * pcDriveName, bool & supportsTrim, bool & seekPenalty )
+{
+    supportsTrim = false;
+    seekPenalty = true;
+    bool success = false;
+
+    char acFile[ 10 ];
+    strcpy(acFile,"\\\\.\\c:");
+    acFile[4] = *pcDriveName;
+
+    HANDLE hDevice = CreateFileA( acFile, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0 );
+    if ( INVALID_HANDLE_VALUE == hDevice )
+        return false;
+
+    STORAGE_PROPERTY_QUERY spqTrim;
+    spqTrim.PropertyId = StorageDeviceTrimProperty;
+    spqTrim.QueryType = PropertyStandardQuery;
+
+    DWORD bytesReturned = 0;
+    DEVICE_TRIM_DESCRIPTOR dtd = {0};
+    if ( DeviceIoControl( hDevice, IOCTL_STORAGE_QUERY_PROPERTY, &spqTrim, sizeof(spqTrim), &dtd, sizeof( dtd ), &bytesReturned, 0 ) &&
+         bytesReturned == sizeof( dtd ) )
+    {
+        supportsTrim = ( 0 != dtd.TrimEnabled ); // true for SSDs that support trim and aren't in a raid volume
+        success = true;
+    }
+
+    STORAGE_PROPERTY_QUERY spqSeekP;
+    spqSeekP.PropertyId = StorageDeviceSeekPenaltyProperty;
+    spqSeekP.QueryType = PropertyStandardQuery;
+
+    bytesReturned = 0;
+    DEVICE_SEEK_PENALTY_DESCRIPTOR dspd = {0};
+    if ( DeviceIoControl( hDevice, IOCTL_STORAGE_QUERY_PROPERTY, &spqSeekP, sizeof( spqSeekP ), &dspd, sizeof( dspd ), &bytesReturned, 0 ) &&
+         bytesReturned == sizeof( dspd ) )
+    {
+        seekPenalty = ( 0 != dspd.IncursSeekPenalty ); // true for spinning and false for SSD
+        success = true;
+    }
+
+    CloseHandle( hDevice );
+    return success;
+} //GetDriveInformation
+
 VOID VolumeInfo( char * pcDriveName )
 {
     char acVolume[50], acFS[50];
@@ -851,12 +961,18 @@ VOID VolumeInfo( char * pcDriveName )
     {
         PartitionSize( pcDriveName[0] );
     }
+
+    bool supportsTrim = false;
+    bool seekPenalty = true;
+    bool ok = GetDriveInformation( pcDriveName, supportsTrim, seekPenalty );
+    if ( ok )
+        printf( "%s", supportsTrim ? "       yes" : "        no" );
 } //VolumeInfo
 
 void ShowDrives()
 {
-    printf( "drive info via GetDriveType, GetDiskFreeSpace(Ex):\n" );
-    printf("      type      fs                   volume        total         free\n");
+    printf( "drive info via GetDriveType, GetDiskFreeSpace(Ex), IOCTL_STORAGE_QUERY_PROPERTY:\n" );
+    printf("      type      fs                   volume        total         free      trim\n");
 
     DWORD dwDriveMask = GetLogicalDrives();
     char acRootPath[ 5 ];
@@ -1374,7 +1490,7 @@ void ShowMonitors()
             }
         }
         else
-            printf( "Can't get proc address of GetIntegratedDisplaySize" );
+            printf( "Can't get proc address of GetIntegratedDisplaySize\n" );
     
         FreeLibrary( hmodKernelBase );
     }
@@ -2095,6 +2211,5 @@ extern "C" int __cdecl main( int argc, char * argv[] )
 
     return 0;
 } //main
-
 
 
