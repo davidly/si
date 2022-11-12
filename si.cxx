@@ -10,9 +10,6 @@
 // When building with vs6 I grabbed 2003 versions of these networking headers:
 //    ipexport.h, iphlpapi.h, iprtrmib.h, iptypes.h
 //
-// Todo: - handle CPUs with both efficiency and performance cores
-//       - ARM64 equivalent of CPUID
-//
 // Build on Windows 11 to target various platforms:
 //
 //    32-bit Windows with VS2019 / Microsoft (R) C/C++ Optimizing Compiler Version 19.29.30140 for x86
@@ -58,18 +55,14 @@ bool g_fullInformation = false;
 
 // Microsoft accidentally omitted this from headers decades ago...
 
-#ifndef PROCESSOR_POWER_INFORMATION
-
-    typedef struct _PROCESSOR_POWER_INFORMATION {
-      ULONG Number;
-      ULONG MaxMhz;
-      ULONG CurrentMhz;
-      ULONG MhzLimit;
-      ULONG MaxIdleState;
-      ULONG CurrentIdleState;
-    } PROCESSOR_POWER_INFORMATION, *PPROCESSOR_POWER_INFORMATION;
-
-#endif
+typedef struct _PROCESSOR_POWER_INFORMATION_FAKE {
+  ULONG Number;
+  ULONG MaxMhz;
+  ULONG CurrentMhz;
+  ULONG MhzLimit;
+  ULONG MaxIdleState;
+  ULONG CurrentIdleState;
+} PROCESSOR_POWER_INFORMATION_FAKE, *PPROCESSOR_POWER_INFORMATION_FAKE;
 
 #ifndef PDCAP_D0_SUPPORTED
 
@@ -159,7 +152,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
     ProcessInformationClassMaxFake
 } PROCESS_INFORMATION_CLASS_FAKE;
 
-// Enable building with VS6 tools so the binary can run in Win98.
+// Enable building 32-bit binaries with VS6 tools so the binary can run in Win98.
 // That means replicating all of these definitions.
 
 #if _MSC_VER == 1200
@@ -248,6 +241,53 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         BYTE  AdditionalParameters[1];
     } STORAGE_PROPERTY_QUERY, *PSTORAGE_PROPERTY_QUERY;
 
+    typedef struct _PARTITION_INFORMATION_GPT {
+        GUID PartitionType;                 // Partition type. See table 16-3.
+        GUID PartitionId;                   // Unique GUID for this partition.
+        ULONG64 Attributes;                 // See table 16-4.
+        WCHAR Name [36];                    // Partition Name in Unicode.
+    } PARTITION_INFORMATION_GPT, *PPARTITION_INFORMATION_GPT;
+    
+    typedef enum _PARTITION_STYLE {
+        PARTITION_STYLE_MBR,
+        PARTITION_STYLE_GPT,
+        PARTITION_STYLE_RAW
+    } PARTITION_STYLE;
+    
+    typedef SET_PARTITION_INFORMATION SET_PARTITION_INFORMATION_MBR;
+    typedef PARTITION_INFORMATION_GPT SET_PARTITION_INFORMATION_GPT;
+    
+    typedef struct _SET_PARTITION_INFORMATION_EX {
+        PARTITION_STYLE PartitionStyle;
+        union {
+            SET_PARTITION_INFORMATION_MBR Mbr;
+            SET_PARTITION_INFORMATION_GPT Gpt;
+        } DUMMYUNIONNAME;
+    } SET_PARTITION_INFORMATION_EX, *PSET_PARTITION_INFORMATION_EX;
+    
+    typedef struct _PARTITION_INFORMATION_MBR {
+        UCHAR PartitionType;
+        BOOLEAN BootIndicator;
+        BOOLEAN RecognizedPartition;
+        ULONG HiddenSectors;
+        GUID PartitionId;
+    } PARTITION_INFORMATION_MBR, *PPARTITION_INFORMATION_MBR;
+    
+    typedef struct _PARTITION_INFORMATION_EX {
+        PARTITION_STYLE PartitionStyle;
+        LARGE_INTEGER StartingOffset;
+        LARGE_INTEGER PartitionLength;
+        ULONG PartitionNumber;
+        BOOLEAN RewritePartition;
+    
+        union {
+            PARTITION_INFORMATION_MBR Mbr;
+            PARTITION_INFORMATION_GPT Gpt;
+        } DUMMYUNIONNAME;
+    } PARTITION_INFORMATION_EX, *PPARTITION_INFORMATION_EX;
+    
+    #define IOCTL_DISK_GET_PARTITION_INFO_EX    CTL_CODE(IOCTL_DISK_BASE, 0x0012, METHOD_BUFFERED, FILE_ANY_ACCESS)
+    
     typedef struct _MEMORYSTATUSEX {
         DWORD     dwLength;
         DWORD     dwMemoryLoad;
@@ -369,23 +409,22 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
 
 #endif // _MSC_VER_1200
 
-void PrintNumberWithCommas( __int64 n )
+void PrintNumberWithCommas( char *pc, __int64 n )
 {
     if ( n < 0 )
     {
-        printf( "-" );
-        PrintNumberWithCommas( -n );
-        return;
+        strcat( pc, "-" );
+        PrintNumberWithCommas( pc, -n );
     }
-   
-    if ( n < 1000 )
+    else if ( n < 1000 )
     {
-        printf( "%lld", n );
-        return;
+        sprintf( pc + strlen( pc ), "%lld", n );
     }
-
-    PrintNumberWithCommas( n / 1000 );
-    printf( ",%03lld", n % 1000 );
+    else
+    {
+        PrintNumberWithCommas( pc, n / 1000 );
+        sprintf( pc + strlen( pc ), ",%03lld", n % 1000 );
+    }
 } //PrintNumberWithCommas
 
 DWORD CountSetBits( ULONG_PTR bitMask )
@@ -859,16 +898,28 @@ void PartitionSize( char c )
 
     if ( INVALID_HANDLE_VALUE != hDevice )
     {
+        _int64 onemeg = (_int64) 1024 * (_int64) 1024;
         DWORD dwRet = 0;
         PARTITION_INFORMATION pi;
+        PARTITION_INFORMATION_EX piex;
+        char ac[ 100 ] = {0};
 
-        if ( DeviceIoControl( hDevice, IOCTL_DISK_GET_PARTITION_INFO, 0, 0, &pi, sizeof( pi ), &dwRet, 0 ) )
+        if ( DeviceIoControl( hDevice, IOCTL_DISK_GET_PARTITION_INFO_EX, 0, 0, &piex, sizeof( piex ), &dwRet, 0 ) )
         {
-            _int64 low = pi.PartitionLength.LowPart;
+            _int64 len = piex.PartitionLength.QuadPart;
+            ac[ 0 ] = 0;
+            PrintNumberWithCommas( ac, len / onemeg );
+            printf( " %14sm                ", ac );
+            fOk = TRUE;
+        }
+        else if ( DeviceIoControl( hDevice, IOCTL_DISK_GET_PARTITION_INFO, 0, 0, &pi, sizeof( pi ), &dwRet, 0 ) )
+        {
+            _int64 len = pi.PartitionLength.LowPart;
             _int64 hi = pi.PartitionLength.HighPart;
-            low += (hi << 32);
-            low /= (1024 * 1024);
-            printf(" %11ldm             ",(DWORD) low);
+            len += ( hi << 32 );
+            ac[ 0 ] = 0;
+            PrintNumberWithCommas( ac, len / onemeg );
+            printf( " %14sm                ", ac );
             fOk = TRUE;
         }
 
@@ -876,7 +927,7 @@ void PartitionSize( char c )
     }
 
     if ( !fOk )
-        printf("                          ");
+        printf( "                                " );
 } //PartitionSize
 
 bool GetDriveInformation( char * pcDriveName, bool & supportsTrim, bool & seekPenalty )
@@ -935,6 +986,7 @@ VOID VolumeInfo( char * pcDriveName )
     DWORD dwSPerC,dwBPerS,dwFreeClusters,dwClusters;
     _int64 onemeg = (_int64) 1024 * (_int64) 1024;
 
+    char ac[ 100 ];
     typedef BOOL ( WINAPI *LPFN_GDFSEX ) ( const char *, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER );
     LPFN_GDFSEX gdfsex = (LPFN_GDFSEX) GetProcAddress( GetModuleHandleA( "kernel32" ), "GetDiskFreeSpaceExA" );
     if ( 0 != gdfsex )
@@ -943,9 +995,17 @@ VOID VolumeInfo( char * pcDriveName )
         BOOL ok = gdfsex( pcDriveName, &freeBytesAvailable, &totalNumberOfBytes, &totalNumberOfFreeBytes );
         if ( ok )
         {
+            ac[ 0 ] = 0;
+            PrintNumberWithCommas( ac, totalNumberOfBytes.QuadPart / onemeg  );
+            printf( " %14sm", ac );
+
+            ac[ 0 ] = 0;
+            PrintNumberWithCommas( ac, freeBytesAvailable.QuadPart / onemeg );
+            printf( " %14sm", ac );
+
             // vs6 printf can't print two 64 bit integers in one format string
-            printf( " %11lldm", totalNumberOfBytes.QuadPart / onemeg );
-            printf( " %11lldm", freeBytesAvailable.QuadPart / onemeg );
+            //printf( " %11lldm", totalNumberOfBytes.QuadPart / onemeg );
+            //printf( " %11lldm", freeBytesAvailable.QuadPart / onemeg );
         }
     }
     else if ( GetDiskFreeSpaceA( pcDriveName, &dwSPerC, &dwBPerS, &dwFreeClusters, &dwClusters ) )
@@ -955,7 +1015,15 @@ VOID VolumeInfo( char * pcDriveName )
         _int64 fc = dwFreeClusters;
         _int64 c = dwClusters;
 
-        printf( " %11ldm %11ldm", (DWORD) ( (spc * sbps * c) / onemeg ), (DWORD) ( (spc * sbps * fc) / onemeg ) );
+        ac[ 0 ] = 0;
+        PrintNumberWithCommas( ac, ( spc * sbps * c ) / onemeg );
+        printf( " %14sm", ac );
+
+        ac[ 0 ] = 0;
+        PrintNumberWithCommas( ac, ( spc * sbps * fc ) / onemeg );
+        printf( " %14sm", ac );
+
+        //printf( " %11ldm %11ldm", (DWORD) ( (spc * sbps * c) / onemeg ), (DWORD) ( (spc * sbps * fc) / onemeg ) );
     }
     else
     {
@@ -972,7 +1040,7 @@ VOID VolumeInfo( char * pcDriveName )
 void ShowDrives()
 {
     printf( "drive info via GetDriveType, GetDiskFreeSpace(Ex), IOCTL_STORAGE_QUERY_PROPERTY:\n" );
-    printf("      type      fs                   volume        total         free      trim\n");
+    printf("      type      fs                   volume           total            free      trim\n");
 
     DWORD dwDriveMask = GetLogicalDrives();
     char acRootPath[ 5 ];
@@ -1062,8 +1130,8 @@ bool ShowCPUSpeed()
 
     SYSTEM_INFO si;
     GetSystemInfo( &si );
-    DWORD bufferSize = si.dwNumberOfProcessors * sizeof( PROCESSOR_POWER_INFORMATION );
-    PROCESSOR_POWER_INFORMATION * ppi = (PROCESSOR_POWER_INFORMATION *) malloc( bufferSize );
+    DWORD bufferSize = si.dwNumberOfProcessors * sizeof( PROCESSOR_POWER_INFORMATION_FAKE );
+    PROCESSOR_POWER_INFORMATION_FAKE * ppi = (PROCESSOR_POWER_INFORMATION_FAKE *) malloc( bufferSize );
     HRESULT hr = cntpi( ProcessorInformation, 0, 0, ppi, bufferSize );
     if ( S_OK == hr )
     {
