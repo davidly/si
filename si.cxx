@@ -52,6 +52,7 @@
 using namespace std;
 
 bool g_fullInformation = false;
+const _int64 OneMeg = (_int64) 1024 * (_int64) 1024;
 
 // Microsoft accidentally omitted this from headers decades ago...
 
@@ -898,7 +899,6 @@ void PartitionSize( char c )
 
     if ( INVALID_HANDLE_VALUE != hDevice )
     {
-        _int64 onemeg = (_int64) 1024 * (_int64) 1024;
         DWORD dwRet = 0;
         PARTITION_INFORMATION pi;
         PARTITION_INFORMATION_EX piex;
@@ -908,7 +908,7 @@ void PartitionSize( char c )
         {
             _int64 len = piex.PartitionLength.QuadPart;
             ac[ 0 ] = 0;
-            PrintNumberWithCommas( ac, len / onemeg );
+            PrintNumberWithCommas( ac, len / OneMeg );
             printf( " %14sm                ", ac );
             fOk = TRUE;
         }
@@ -918,7 +918,7 @@ void PartitionSize( char c )
             _int64 hi = pi.PartitionLength.HighPart;
             len += ( hi << 32 );
             ac[ 0 ] = 0;
-            PrintNumberWithCommas( ac, len / onemeg );
+            PrintNumberWithCommas( ac, len / OneMeg );
             printf( " %14sm                ", ac );
             fOk = TRUE;
         }
@@ -984,7 +984,6 @@ VOID VolumeInfo( char * pcDriveName )
         printf("      ?                         ");
   
     DWORD dwSPerC,dwBPerS,dwFreeClusters,dwClusters;
-    _int64 onemeg = (_int64) 1024 * (_int64) 1024;
 
     char ac[ 100 ];
     typedef BOOL ( WINAPI *LPFN_GDFSEX ) ( const char *, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER );
@@ -996,16 +995,12 @@ VOID VolumeInfo( char * pcDriveName )
         if ( ok )
         {
             ac[ 0 ] = 0;
-            PrintNumberWithCommas( ac, totalNumberOfBytes.QuadPart / onemeg  );
+            PrintNumberWithCommas( ac, totalNumberOfBytes.QuadPart / OneMeg  );
             printf( " %14sm", ac );
 
             ac[ 0 ] = 0;
-            PrintNumberWithCommas( ac, freeBytesAvailable.QuadPart / onemeg );
+            PrintNumberWithCommas( ac, freeBytesAvailable.QuadPart / OneMeg );
             printf( " %14sm", ac );
-
-            // vs6 printf can't print two 64 bit integers in one format string
-            //printf( " %11lldm", totalNumberOfBytes.QuadPart / onemeg );
-            //printf( " %11lldm", freeBytesAvailable.QuadPart / onemeg );
         }
     }
     else if ( GetDiskFreeSpaceA( pcDriveName, &dwSPerC, &dwBPerS, &dwFreeClusters, &dwClusters ) )
@@ -1016,14 +1011,12 @@ VOID VolumeInfo( char * pcDriveName )
         _int64 c = dwClusters;
 
         ac[ 0 ] = 0;
-        PrintNumberWithCommas( ac, ( spc * sbps * c ) / onemeg );
+        PrintNumberWithCommas( ac, ( spc * sbps * c ) / OneMeg );
         printf( " %14sm", ac );
 
         ac[ 0 ] = 0;
-        PrintNumberWithCommas( ac, ( spc * sbps * fc ) / onemeg );
+        PrintNumberWithCommas( ac, ( spc * sbps * fc ) / OneMeg );
         printf( " %14sm", ac );
-
-        //printf( " %11ldm %11ldm", (DWORD) ( (spc * sbps * c) / onemeg ), (DWORD) ( (spc * sbps * fc) / onemeg ) );
     }
     else
     {
@@ -1039,7 +1032,7 @@ VOID VolumeInfo( char * pcDriveName )
 
 void ShowDrives()
 {
-    printf( "drive info via GetDriveType, GetDiskFreeSpace(Ex), IOCTL_STORAGE_QUERY_PROPERTY:\n" );
+    printf( "drive info via GetDriveType, GetDiskFreeSpace(Ex), IOCTL_DISK_GET_PARTITION_INFO(_EX), IOCTL_STORAGE_QUERY_PROPERTY:\n" );
     printf("      type      fs                   volume           total            free      trim\n");
 
     DWORD dwDriveMask = GetLogicalDrives();
@@ -1062,14 +1055,14 @@ void ShowDrives()
                 {
                     printf( "remov" );
 
-                    SetErrorMode(1); // no popups if no disk in drive!
+                    SetErrorMode( 1 ); // no popups if no disk in drive!
 
-                    if ( acRootPath[0] != 'a' && acRootPath[0] != 'b' )
+                    if ( acRootPath[ 0 ] != 'a' && acRootPath[ 0 ] != 'b' )
                         VolumeInfo( acRootPath );
                     else
                         printf("      -");
 
-                    SetErrorMode(0);
+                    SetErrorMode( 0 );
                     break;
                 }
                 case DRIVE_FIXED:
@@ -1568,28 +1561,6 @@ void ShowMonitors()
 
 #if _MSC_VER <= 1200
 
-static void __cpuid( int * result4, int codeeax )
-{
-    unsigned int a, b, c, d;
-    __asm
-    {
-        mov eax, codeeax;
-        mov ecx, 0
-        mov ebx, 0
-        mov edx, 0
-        cpuid;
-        mov a, eax;
-        mov b, ebx;
-        mov c, ecx;
-        mov d, edx;
-    }
-
-    result4[0] = a;
-    result4[1] = b;
-    result4[2] = c;
-    result4[3] = d;
-} //__cpuid
-
 static void __cpuidex( int * result4, int codeeax, int codeecx )
 {
     unsigned int a, b, c, d;
@@ -1611,6 +1582,11 @@ static void __cpuidex( int * result4, int codeeax, int codeecx )
     result4[2] = c;
     result4[3] = d;
 } //__cpuidex
+
+static void __cpuid( int * result4, int codeeax )
+{
+    __cpuidex( result4, codeeax, 0 );
+} //__cpuid
 
 #endif // _MSC_VER_1200
 
@@ -2172,7 +2148,6 @@ void ShowRegBiosInfo()
         typedef LSTATUS ( WINAPI *LPFN_ROKE )( HKEY, LPCSTR, DWORD, REGSAM, PHKEY );
         LPFN_ROKE roke = (LPFN_ROKE) GetProcAddress( hmodAdvapi32, "RegOpenKeyExA" );
 
-        typedef LSTATUS ( WINAPI *LPFN_RQVE )( HKEY, LPCSTR, LPDWORD, LPDWORD, LPBYTE, LPDWORD );
         LPFN_RQVE rqve = (LPFN_RQVE) GetProcAddress( hmodAdvapi32, "RegQueryValueExA" );
 
         typedef LSTATUS ( WINAPI *LPFN_RCK )( HKEY );
@@ -2215,7 +2190,7 @@ void usage()
     exit( 0 );
 } //usage
 
-extern "C" int __cdecl main( int argc, char * argv[] )
+int main( int argc, char * argv[] )
 {
     // set this early to get physical numbers for monitor rectangles
 
