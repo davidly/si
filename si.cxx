@@ -761,7 +761,7 @@ bool AttemptOldAPIForProcessorInfo()
                 {
                     if ( !shownL1 )
                     {
-                        printf( "L1 cache / line size:                    %dk / %d\n", Cache->Size / 1024, Cache->LineSize );
+                        printf( "L1 cache / line size:                      %dk / %d\n", Cache->Size / 1024, Cache->LineSize );
                         shownL1 = true;
                     }
                     processorL1CacheCount++;
@@ -770,7 +770,7 @@ bool AttemptOldAPIForProcessorInfo()
                 {
                     if ( !shownL2 )
                     {
-                        printf( "L2 cache / line size:                    %dk / %d\n", Cache->Size / 1024, Cache->LineSize );
+                        printf( "L2 cache / line size:                      %dk / %d\n", Cache->Size / 1024, Cache->LineSize );
                         shownL2 = true;
                     }
                     processorL2CacheCount++;
@@ -779,7 +779,7 @@ bool AttemptOldAPIForProcessorInfo()
                 {
                     if ( !shownL3 )
                     {
-                        printf( "L3 cache / line size:                    %dk / %d\n", Cache->Size / 1024, Cache->LineSize );
+                        printf( "L3 cache / line size:                      %dk / %d\n", Cache->Size / 1024, Cache->LineSize );
                         shownL3 = true;
                     }
                     processorL3CacheCount++;
