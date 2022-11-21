@@ -858,11 +858,11 @@ void ShowSystemMemory()
             const ULONGLONG oneK = 1024;
             ULONGLONG meminK = msex.ullTotalPhys / oneK;
             ULONGLONG meminMeg = meminK / oneK;
-            ULONGLONG meminGig = meminMeg / oneK;
+            double meminGig = (double) (LONGLONG) meminK / (double) OneMeg;
 
             // vs6 printf can't print two 64 bit integers in one format string
             printf( "  total usable physical memory:            %lld MB == ", meminMeg );
-            printf( "%lld GB\n", meminGig );
+            printf( "%.2lf GB\n", meminGig );
         }
         else
             printf( "GlobalMemoryStatuEx failed with error %d\n", GetLastError() );
@@ -981,7 +981,7 @@ VOID VolumeInfo( char * pcDriveName )
     if ( GetVolumeInformationA( pcDriveName, acVolume, sizeof( acVolume ), 0, 0, 0, acFS, sizeof( acFS ) ) )
         printf( "  %5s %24s", acFS, acVolume );
     else
-        printf("      ?                         ");
+        printf( "      ?                                                         " );
   
     DWORD dwSPerC,dwBPerS,dwFreeClusters,dwClusters;
 
@@ -1027,7 +1027,7 @@ VOID VolumeInfo( char * pcDriveName )
     bool seekPenalty = true;
     bool ok = GetDriveInformation( pcDriveName, supportsTrim, seekPenalty );
     if ( ok )
-        printf( "%s", supportsTrim ? "       yes" : "        no" );
+        printf( "%10s", supportsTrim ? "yes" : "no" );
 } //VolumeInfo
 
 void ShowDrives()
