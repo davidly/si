@@ -6,7 +6,7 @@ going back to Windows 98.
 
 Instructions for building using different tool sets are in the source file. I build for Windows 98
 using old tools/headers so the binary can run on all subsequent versions of Windows . It'll
-also build with the latest tools, but the resulting binary can even run on Windows XP.
+also build with the latest tools, but the resulting binary can't even run on Windows XP.
 
 Sample output:
 
