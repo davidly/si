@@ -1,7 +1,12 @@
 # si
-System Information. Command-line Windows app that shows info about the hardware and OS
+System Information. Command-line Windows app that shows info about the hardware and OS.
 
-Instructions for building are in the source file.
+SI attempts to use the latest APIs to retrieve information, but will fall back to older APIs
+going back to Windows 98. 
+
+Instructions for building using different tool sets are in the source file. I build for Windows 98
+using old tools/headers so the binary can run on all subsequent versions of Windows . It'll
+also build with the latest tools, but the resulting binary can't even run on Windows XP.
 
 Sample output:
 
