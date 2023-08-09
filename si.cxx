@@ -408,7 +408,77 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
       } DUMMYUNIONNAME;
     } SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, *PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX;
 
+    typedef struct DXGI_ADAPTER_DESC
+        {
+        WCHAR Description[ 128 ];
+        UINT VendorId;
+        UINT DeviceId;
+        UINT SubSysId;
+        UINT Revision;
+        SIZE_T DedicatedVideoMemory;
+        SIZE_T DedicatedSystemMemory;
+        SIZE_T SharedSystemMemory;
+        LUID AdapterLuid;
+        }   DXGI_ADAPTER_DESC;
+    
+    MIDL_INTERFACE("aec22fb8-76f3-4639-9be0-28eb43a67a2e")
+    IDXGIObject : public IUnknown
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE SetPrivateData( 
+            REFGUID Name,
+            UINT DataSize,
+            const void *pData) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface( 
+            REFGUID Name,
+            const IUnknown *pUnknown) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetPrivateData( 
+            REFGUID Name,
+            UINT *pDataSize,
+            void *pData) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetParent( 
+            REFIID riid,
+            void **ppParent) = 0;
+        
+    };
+    
+    MIDL_INTERFACE("2411e7e1-12ac-4ccf-bd14-9798e8534dc0")
+    IDXGIAdapter : public IDXGIObject
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE EnumOutputs( 
+            UINT Output,
+            void **ppOutput) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetDesc( 
+            /* [annotation][out] */ 
+            DXGI_ADAPTER_DESC *pDesc) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE CheckInterfaceSupport( 
+            REFGUID InterfaceName,
+            LARGE_INTEGER *pUMDVersion) = 0;
+        
+    };
+    
+    MIDL_INTERFACE("7b7166ec-21c7-44ae-b21a-c9ae321ae369")
+    IDXGIFactory : public IDXGIObject
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE EnumAdapters( 
+            UINT Adapter,
+            IDXGIAdapter **ppAdapter) = 0;
+    };
+
+    #define DXGI_ERROR_NOT_FOUND             _HRESULT_TYPEDEF_(0x887A0002L)
+
+#else
+    #include <dxgi.h>
 #endif // _MSC_VER_1200
+
+const GUID GUID_IDXGIFactory = { 0x7b7166ec, 0x21c7, 0x44ae, { 0xb2, 0x1a, 0xc9, 0xae, 0x32, 0x1a, 0xe3, 0x69 } };
 
 void PrintNumberWithCommas( char *pc, __int64 n )
 {
@@ -2181,6 +2251,74 @@ void ShowRegBiosInfo()
     }
 } //ShowRegBiosInfo
 
+void ShowGraphicsMemorySize( const char * pmsg, SIZE_T b )
+{
+    SIZE_T mb = b / ( 1024 * 1024 );
+
+#ifdef _WIN64 // VS6 doesn't understand %z, so this has to be hard-coded
+    if ( 0 == mb )
+        printf( "    %-38s %lld bytes\n", pmsg, b );
+    else
+        printf( "    %-38s %lld megabytes\n", pmsg, mb );
+#else
+    if ( 0 == mb )
+        printf( "    %-38s %ld bytes\n", pmsg, b );
+    else
+        printf( "    %-38s %ld megabytes\n", pmsg, mb );
+#endif
+} //ShowGraphicsMemorySize
+
+void ShowGraphicsAdapters()
+{
+    HMODULE hmodDXGI  = LoadLibraryA( "dxgi.dll" );
+    if ( hmodDXGI )
+    {
+        typedef HRESULT ( WINAPI *LPFN_CDXGIF ) ( REFIID, void ** );
+        LPFN_CDXGIF cdxgif = (LPFN_CDXGIF) GetProcAddress( hmodDXGI, "CreateDXGIFactory" );
+        if ( cdxgif )
+        {
+            IDXGIFactory * pFactory = 0;
+            // HRESULT hr = cdxgif( __uuidof( IDXGIFactory ), (void**) &pFactory );
+            HRESULT hr = cdxgif( GUID_IDXGIFactory, (void**) &pFactory );
+            if ( FAILED( hr ) )
+                printf( "unable to create DXGIFactory, error %#x\n", hr );
+            else
+            {
+                printf( "display adapters:\n" );
+                UINT i = 0;
+                do
+                {
+                    IDXGIAdapter * pAdapter = 0;
+                    hr = pFactory->EnumAdapters( i, &pAdapter );
+            
+                    if ( hr == DXGI_ERROR_NOT_FOUND )
+                        break;
+
+                    printf( "  display adapter %u:\n", i );
+            
+                    DXGI_ADAPTER_DESC adapterDesc; // modern memory sizes don't fit in 4 bytes for 32-bit versions of SI.
+                    hr = pAdapter->GetDesc( &adapterDesc );
+                    if ( SUCCEEDED( hr ) )
+                    {
+                        printf( "    %-38s %ws\n", "adapter description:", adapterDesc.Description );
+                        printf( "    vendor, device, and subystem PCI IDs:  %#x, %#x, %#x\n", adapterDesc.VendorId, adapterDesc.DeviceId, adapterDesc.SubSysId );
+                        ShowGraphicsMemorySize( "dedicated video memory:", adapterDesc.DedicatedVideoMemory );
+                        ShowGraphicsMemorySize( "dedicated system memory:", adapterDesc.DedicatedSystemMemory );
+                        ShowGraphicsMemorySize( "shared system memory:", adapterDesc.SharedSystemMemory );
+                    }
+                    else
+                        printf( "    can't get display adapter desc, error %#x\n", hr );
+            
+                    i++;
+                } while( true );
+            }
+        }
+        FreeLibrary( hmodDXGI );
+    }
+    else
+        printf( "can't loadlibrary dxgi.dll\n" );
+} //ShowGraphicsAdapters
+
 void usage()
 {
     printf( "si [-c] [-f]\n" );
@@ -2248,8 +2386,9 @@ int main( int argc, char * argv[] )
     ShowSystemInfo();
     ShowArchitectureInfo();
     ShowNetworkAdapters();
-    ShowOSVersion();
+    ShowGraphicsAdapters();
     ShowMonitors();
+    ShowOSVersion();
     ShowDrives();
 
     return 0;
