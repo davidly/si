@@ -722,9 +722,11 @@ bool AttemptNewAPIForProcessorInfo()
     for ( size_t x = 0; x < unique_pr.size(); x++ )
     {
         PROCESSOR_RELATIONSHIP pr = unique_pr[ x ];
-        printf( "  core count / efficiency / hyperthreads:  %d / %d / %s\n",
+        printf( "  core count / efficiency / hyperthreads:  %d / %d%s / %s\n",
                 prcounts[ x ],
                 pr.EfficiencyClass,
+                ( 0 == maxEfficiency ) ? "" : 
+                    ( 0 == pr.EfficiencyClass ) ? " (slower)" : " (faster)",
                 0 == pr.Flags ? "no" : LTP_PC_SMT == pr.Flags ? "yes" : "unknown" );
         processorCount += prcounts[ x ];
     }
