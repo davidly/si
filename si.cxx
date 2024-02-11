@@ -1872,7 +1872,7 @@ void ShowCPUID()
         printf( "  brand:                                   %s\n", pBrand );
     }
 
-    if ( g_fullInformation && highestFunction >= 7 )
+    if ( highestFunction >= 7 )
     {
         __cpuidex( vals, 7, 0 );
         int ebx = vals[1];
