@@ -29,7 +29,7 @@
 //    64-bit Windows 11 on Arm64 with VS2022 / Microsoft (R) C/C++ Optimizing Compiler Version 19.34.31932 for ARM64
 //        mkdir arm64
 //        cl /nologo si.cxx /I:.\ /DDEBUG /EHac /Zi /O2i /Gy /Fe: arm64\si.exe /link /OPT:REF /incremental:no
-//      
+//
 
 #include <stdio.h>
 #include <process.h>
@@ -170,7 +170,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
     typedef unsigned int ULONG_PTR;
     typedef HRESULT NTSTATUS;
     typedef LONG LSTATUS;
-    
+
     #define PROCESSOR_ARCHITECTURE_AMD64 9
 
     #ifndef PROCESSOR_ARCHITECTURE_ARM64
@@ -181,26 +181,26 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
     typedef BOOL (CALLBACK* MONITORENUMPROC)(HMONITOR, HDC, LPRECT, LPARAM);
 
     #define IOCTL_STORAGE_QUERY_PROPERTY                CTL_CODE(IOCTL_STORAGE_BASE, 0x0500, METHOD_BUFFERED, FILE_ANY_ACCESS)
-    
+
     typedef struct _DEVICE_TRIM_DESCRIPTOR {
         DWORD       Version;          // keep compatible with STORAGE_DESCRIPTOR_HEADER
         DWORD       Size;             // keep compatible with STORAGE_DESCRIPTOR_HEADER
         BOOLEAN     TrimEnabled;
     } DEVICE_TRIM_DESCRIPTOR, *PDEVICE_TRIM_DESCRIPTOR;
-    
+
     typedef struct _DEVICE_SEEK_PENALTY_DESCRIPTOR {
         DWORD       Version;          // keep compatible with STORAGE_DESCRIPTOR_HEADER
         DWORD       Size;             // keep compatible with STORAGE_DESCRIPTOR_HEADER
         BOOLEAN     IncursSeekPenalty;
     } DEVICE_SEEK_PENALTY_DESCRIPTOR, *PDEVICE_SEEK_PENALTY_DESCRIPTOR;
-    
+
     typedef enum _STORAGE_QUERY_TYPE {
         PropertyStandardQuery = 0,          // Retrieves the descriptor
         PropertyExistsQuery,                // Used to test whether the descriptor is supported
         PropertyMaskQuery,                  // Used to retrieve a mask of writeable fields in the descriptor
         PropertyQueryMaxDefined     // use to validate the value
     } STORAGE_QUERY_TYPE, *PSTORAGE_QUERY_TYPE;
-    
+
     typedef enum _STORAGE_PROPERTY_ID {
         StorageDeviceProperty = 0,
         StorageAdapterProperty,
@@ -235,7 +235,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         StorageDeviceZonedDeviceProperty,
         StorageDeviceUnsafeShutdownCount
     } STORAGE_PROPERTY_ID, *PSTORAGE_PROPERTY_ID;
-    
+
     typedef struct _STORAGE_PROPERTY_QUERY {
         STORAGE_PROPERTY_ID PropertyId;
         STORAGE_QUERY_TYPE QueryType;
@@ -248,16 +248,16 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         ULONG64 Attributes;                 // See table 16-4.
         WCHAR Name [36];                    // Partition Name in Unicode.
     } PARTITION_INFORMATION_GPT, *PPARTITION_INFORMATION_GPT;
-    
+
     typedef enum _PARTITION_STYLE {
         PARTITION_STYLE_MBR,
         PARTITION_STYLE_GPT,
         PARTITION_STYLE_RAW
     } PARTITION_STYLE;
-    
+
     typedef SET_PARTITION_INFORMATION SET_PARTITION_INFORMATION_MBR;
     typedef PARTITION_INFORMATION_GPT SET_PARTITION_INFORMATION_GPT;
-    
+
     typedef struct _SET_PARTITION_INFORMATION_EX {
         PARTITION_STYLE PartitionStyle;
         union {
@@ -265,7 +265,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
             SET_PARTITION_INFORMATION_GPT Gpt;
         } DUMMYUNIONNAME;
     } SET_PARTITION_INFORMATION_EX, *PSET_PARTITION_INFORMATION_EX;
-    
+
     typedef struct _PARTITION_INFORMATION_MBR {
         UCHAR PartitionType;
         BOOLEAN BootIndicator;
@@ -273,22 +273,22 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         ULONG HiddenSectors;
         GUID PartitionId;
     } PARTITION_INFORMATION_MBR, *PPARTITION_INFORMATION_MBR;
-    
+
     typedef struct _PARTITION_INFORMATION_EX {
         PARTITION_STYLE PartitionStyle;
         LARGE_INTEGER StartingOffset;
         LARGE_INTEGER PartitionLength;
         ULONG PartitionNumber;
         BOOLEAN RewritePartition;
-    
+
         union {
             PARTITION_INFORMATION_MBR Mbr;
             PARTITION_INFORMATION_GPT Gpt;
         } DUMMYUNIONNAME;
     } PARTITION_INFORMATION_EX, *PPARTITION_INFORMATION_EX;
-    
+
     #define IOCTL_DISK_GET_PARTITION_INFO_EX    CTL_CODE(IOCTL_DISK_BASE, 0x0012, METHOD_BUFFERED, FILE_ANY_ACCESS)
-    
+
     typedef struct _MEMORYSTATUSEX {
         DWORD     dwLength;
         DWORD     dwMemoryLoad;
@@ -312,14 +312,14 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
       RelationProcessorModule,
       RelationAll = 0xffff
     } LOGICAL_PROCESSOR_RELATIONSHIP;
-    
+
     typedef enum _PROCESSOR_CACHE_TYPE {
       CacheUnified,
       CacheInstruction,
       CacheData,
       CacheTrace
     } PROCESSOR_CACHE_TYPE;
-    
+
     typedef struct _CACHE_DESCRIPTOR {
       BYTE                 Level;
       BYTE                 Associativity;
@@ -327,7 +327,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
       DWORD                Size;
       PROCESSOR_CACHE_TYPE Type;
     } CACHE_DESCRIPTOR, *PCACHE_DESCRIPTOR;
-    
+
     typedef struct _SYSTEM_LOGICAL_PROCESSOR_INFORMATION {
       ULONG_PTR                      ProcessorMask;
       LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
@@ -342,15 +342,15 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         ULONGLONG        Reserved[2];
       } DUMMYUNIONNAME;
     } SYSTEM_LOGICAL_PROCESSOR_INFORMATION, *PSYSTEM_LOGICAL_PROCESSOR_INFORMATION;
-    
+
     typedef ULONG_PTR KAFFINITY;
-    
+
     typedef struct _GROUP_AFFINITY {
       KAFFINITY Mask;
       WORD      Group;
       WORD      Reserved[3];
     } GROUP_AFFINITY, *PGROUP_AFFINITY;
-    
+
     typedef struct _CACHE_RELATIONSHIP {
       BYTE                 Level;
       BYTE                 Associativity;
@@ -364,21 +364,21 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         GROUP_AFFINITY GroupMasks[ANYSIZE_ARRAY];
       } DUMMYUNIONNAME;
     } CACHE_RELATIONSHIP, *PCACHE_RELATIONSHIP;
-    
+
     typedef struct _PROCESSOR_GROUP_INFO {
       BYTE      MaximumProcessorCount;
       BYTE      ActiveProcessorCount;
       BYTE      Reserved[38];
       KAFFINITY ActiveProcessorMask;
     } PROCESSOR_GROUP_INFO, *PPROCESSOR_GROUP_INFO;
-    
+
     typedef struct _GROUP_RELATIONSHIP {
       WORD                 MaximumGroupCount;
       WORD                 ActiveGroupCount;
       BYTE                 Reserved[20];
       PROCESSOR_GROUP_INFO GroupInfo[ANYSIZE_ARRAY];
     } GROUP_RELATIONSHIP, *PGROUP_RELATIONSHIP;
-    
+
     typedef struct _NUMA_NODE_RELATIONSHIP {
       DWORD NodeNumber;
       BYTE  Reserved[18];
@@ -388,7 +388,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         GROUP_AFFINITY GroupMasks[ANYSIZE_ARRAY];
       } DUMMYUNIONNAME;
     } NUMA_NODE_RELATIONSHIP, *PNUMA_NODE_RELATIONSHIP;
-    
+
     typedef struct _PROCESSOR_RELATIONSHIP {
       BYTE           Flags;
       BYTE           EfficiencyClass;
@@ -396,7 +396,7 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
       WORD           GroupCount;
       GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
     } PROCESSOR_RELATIONSHIP, *PPROCESSOR_RELATIONSHIP;
-    
+
     typedef struct _SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
       LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
       DWORD                          Size;
@@ -420,62 +420,219 @@ typedef enum _PROCESS_INFORMATION_CLASS_FAKE {
         SIZE_T SharedSystemMemory;
         LUID AdapterLuid;
         }   DXGI_ADAPTER_DESC;
-    
+
     MIDL_INTERFACE("aec22fb8-76f3-4639-9be0-28eb43a67a2e")
     IDXGIObject : public IUnknown
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE SetPrivateData( 
+        virtual HRESULT STDMETHODCALLTYPE SetPrivateData(
             REFGUID Name,
             UINT DataSize,
             const void *pData) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface( 
+
+        virtual HRESULT STDMETHODCALLTYPE SetPrivateDataInterface(
             REFGUID Name,
             const IUnknown *pUnknown) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE GetPrivateData( 
+
+        virtual HRESULT STDMETHODCALLTYPE GetPrivateData(
             REFGUID Name,
             UINT *pDataSize,
             void *pData) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE GetParent( 
+
+        virtual HRESULT STDMETHODCALLTYPE GetParent(
             REFIID riid,
             void **ppParent) = 0;
-        
+
     };
-    
+
     MIDL_INTERFACE("2411e7e1-12ac-4ccf-bd14-9798e8534dc0")
     IDXGIAdapter : public IDXGIObject
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE EnumOutputs( 
+        virtual HRESULT STDMETHODCALLTYPE EnumOutputs(
             UINT Output,
             void **ppOutput) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE GetDesc( 
-            /* [annotation][out] */ 
+
+        virtual HRESULT STDMETHODCALLTYPE GetDesc(
+            /* [annotation][out] */
             DXGI_ADAPTER_DESC *pDesc) = 0;
-        
-        virtual HRESULT STDMETHODCALLTYPE CheckInterfaceSupport( 
+
+        virtual HRESULT STDMETHODCALLTYPE CheckInterfaceSupport(
             REFGUID InterfaceName,
             LARGE_INTEGER *pUMDVersion) = 0;
-        
+
     };
-    
+
     MIDL_INTERFACE("7b7166ec-21c7-44ae-b21a-c9ae321ae369")
     IDXGIFactory : public IDXGIObject
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE EnumAdapters( 
+        virtual HRESULT STDMETHODCALLTYPE EnumAdapters(
             UINT Adapter,
             IDXGIAdapter **ppAdapter) = 0;
     };
 
     #define DXGI_ERROR_NOT_FOUND             _HRESULT_TYPEDEF_(0x887A0002L)
 
+    typedef enum WHV_CAPABILITY_CODE
+    {
+        // Capabilities of the API implementation
+        WHvCapabilityCodeHypervisorPresent      = 0x00000000,
+        WHvCapabilityCodeFeatures               = 0x00000001,
+        WHvCapabilityCodeExtendedVmExits        = 0x00000002,
+
+        // Capabilities of the system's processor
+        WHvCapabilityCodeProcessorVendor        = 0x00001000,
+        WHvCapabilityCodeProcessorFeatures      = 0x00001001,
+        WHvCapabilityCodeProcessorClFlushSize   = 0x00001002,
+        WHvCapabilityCodeProcessorXsaveFeatures = 0x00001003,
+    } WHV_CAPABILITY_CODE;
+
+    typedef union WHV_CAPABILITY_FEATURES
+    {
+        struct
+        {
+            UINT64 PartialUnmap : 1;
+            UINT64 LocalApicEmulation : 1;
+            UINT64 Xsave : 1;
+            UINT64 DirtyPageTracking : 1;
+            UINT64 SpeculationControl : 1;
+            UINT64 Reserved : 59;
+        };
+
+        UINT64 AsUINT64;
+    } WHV_CAPABILITY_FEATURES;
+
+    typedef enum WHV_PROCESSOR_VENDOR
+    {
+        WHvProcessorVendorAmd   = 0x0000,
+        WHvProcessorVendorIntel = 0x0001,
+        WHvProcessorVendorHygon = 0x0002
+
+    } WHV_PROCESSOR_VENDOR;
+
+    typedef union WHV_PROCESSOR_FEATURES
+    {
+        struct
+        {
+            /* CPUID.01H:ECX.SSE3[bit 0] = 1 */
+            UINT64 Sse3Support : 1;
+            /* CPUID.80000001H:ECX.LAHF-SAHF[bit 0] = 1 */
+            UINT64 LahfSahfSupport : 1;
+            /* CPUID.01H:ECX.SSSE3[bit 9] = 1 */
+            UINT64 Ssse3Support : 1;
+            /* CPUID.01H:ECX.SSE4_1[bit 19] = 1 */
+            UINT64 Sse4_1Support : 1;
+            /* CPUID.01H:ECX.SSE4_2[bit 20] = 1 */
+            UINT64 Sse4_2Support : 1;
+            /* CPUID.80000001H:ECX.SSE4A[bit 6] */
+            UINT64 Sse4aSupport : 1;
+            /* CPUID.80000001H:ECX.XOP[bit 11] */
+            UINT64 XopSupport : 1;
+            /* CPUID.01H:ECX.POPCNT[bit 23] = 1 */
+            UINT64 PopCntSupport : 1;
+            /* CPUID.01H:ECX.CMPXCHG16B[bit 13] = 1 */
+            UINT64 Cmpxchg16bSupport : 1;
+            /* CPUID.80000001H:ECX.AltMovCr8[bit 4] */
+            UINT64 Altmovcr8Support : 1;
+            /* CPUID.80000001H:ECX.LZCNT[bit 5] = 1 */
+            UINT64 LzcntSupport : 1;
+            /* CPUID.80000001H:ECX.MisAlignSse[bit 7] */
+            UINT64 MisAlignSseSupport : 1;
+            /* CPUID.80000001H:EDX.MmxExt[bit 22] */
+            UINT64 MmxExtSupport : 1;
+            /* CPUID.80000001H:EDX.3DNow[bit 31] */
+            UINT64 Amd3DNowSupport : 1;
+            /* CPUID.80000001H:EDX.3DNowExt[bit 30] */
+            UINT64 ExtendedAmd3DNowSupport : 1;
+            /* CPUID.80000001H:EDX.Page1GB[bit 26] = 1 */
+            UINT64 Page1GbSupport : 1;
+            /* CPUID.01H:ECX.AES[bit 25] */
+            UINT64 AesSupport : 1;
+            /* CPUID.01H:ECX.PCLMULQDQ[bit 1] = 1 */
+            UINT64 PclmulqdqSupport : 1;
+            /* CPUID.01H:ECX.PCID[bit 17] */
+            UINT64 PcidSupport : 1;
+            /* CPUID.80000001H:ECX.FMA4[bit 16] = 1 */
+            UINT64 Fma4Support : 1;
+            /* CPUID.01H:ECX.F16C[bit 29] = 1 */
+            UINT64 F16CSupport : 1;
+            /* CPUID.01H:ECX.RDRAND[bit 30] = 1 */
+            UINT64 RdRandSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.FSGSBASE[bit 0] */
+            UINT64 RdWrFsGsSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.SMEP[bit 7] */
+            UINT64 SmepSupport : 1;
+            /* IA32_MISC_ENABLE.FastStringsEnable[bit 0] = 1 */
+            UINT64 EnhancedFastStringSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.BMI1[bit 3] = 1 */
+            UINT64 Bmi1Support : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.BMI2[bit 8] = 1 */
+            UINT64 Bmi2Support : 1;
+            UINT64 Reserved1 : 2;
+            /* CPUID.01H:ECX.MOVBE[bit 22] = 1 */
+            UINT64 MovbeSupport : 1;
+            UINT64 Reserved : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX[bit 13] = 1 */
+            UINT64 DepX87FPUSaveSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.RDSEED[bit 18] = 1 */
+            UINT64 RdSeedSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.ADX[bit 19] */
+            UINT64 AdxSupport : 1;
+            /* CPUID.80000001H:ECX.PREFETCHW[bit 8] = 1 */
+            UINT64 IntelPrefetchSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.SMAP[bit 20] = 1 */
+            UINT64 SmapSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.HLE[bit 4] = 1 */
+            UINT64 HleSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.RTM[bit 11] = 1 */
+            UINT64 RtmSupport : 1;
+            /* CPUID.80000001H:EDX.RDTSCP[bit 27] = 1 */
+            UINT64 RdtscpSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.CLFLUSHOPT[bit 23] */
+            UINT64 ClflushoptSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.CLWB[bit 24] = 1 */
+            UINT64 ClwbSupport : 1;
+            /* CPUID.(EAX=07H, ECX=0H):EBX.SHA[bit 29] */
+            UINT64 ShaSupport : 1;
+            /* CPUID.80000008H:EBX[bit 2] = 1 (AMD only) */
+            UINT64 X87PointersSavedSupport : 1;
+            UINT64 InvpcidSupport : 1;
+            UINT64 IbrsSupport : 1;
+            UINT64 StibpSupport : 1;
+            UINT64 IbpbSupport : 1;
+            UINT64 Reserved2 : 1;
+            UINT64 SsbdSupport : 1;
+            UINT64 FastShortRepMovSupport : 1;
+            UINT64 Reserved3 : 1;
+            UINT64 RdclNo : 1;
+            UINT64 IbrsAllSupport : 1;
+            UINT64 Reserved4 : 1;
+            UINT64 SsbNo : 1;
+            UINT64 RsbANo : 1;
+            UINT64 Reserved5 : 8;
+        };
+
+        UINT64 AsUINT64;
+    } WHV_PROCESSOR_FEATURES;
+
+    typedef union WHV_CAPABILITY
+    {
+        union
+        {
+            BOOL HypervisorPresent;
+            WHV_CAPABILITY_FEATURES Features;
+         //   WHV_EXTENDED_VM_EXITS ExtendedVmExits;
+            WHV_PROCESSOR_VENDOR ProcessorVendor;
+            WHV_PROCESSOR_FEATURES ProcessorFeatures;
+         //   WHV_PROCESSOR_XSAVE_FEATURES ProcessorXsaveFeatures;
+            char ProcessorClFlushSize;
+        };
+    } WHV_CAPABILITY;
+
 #else
     #include <dxgi.h>
+    #include <WinHvPlatform.h>
 #endif // _MSC_VER_1200
 
 const GUID GUID_IDXGIFactory = { 0x7b7166ec, 0x21c7, 0x44ae, { 0xb2, 0x1a, 0xc9, 0xae, 0x32, 0x1a, 0xe3, 0x69 } };
@@ -502,8 +659,8 @@ DWORD CountSetBits( ULONG_PTR bitMask )
 {
     DWORD bitSetCount = 0;
     DWORD LSHIFT = sizeof( ULONG_PTR ) * 8 - 1;
-    ULONG_PTR bitTest = (ULONG_PTR) 1 << LSHIFT;    
-    
+    ULONG_PTR bitTest = (ULONG_PTR) 1 << LSHIFT;
+
     for ( DWORD i = 0; i <= LSHIFT; i++ )
     {
         bitSetCount += ( ( bitMask & bitTest ) ? 1 : 0 );
@@ -538,7 +695,7 @@ bool AttemptNewAPIForProcessorInfo()
 
     typedef BOOL ( WINAPI *LPFN_GLPIEX )( LOGICAL_PROCESSOR_RELATIONSHIP, PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD );
     LPFN_GLPIEX glpi = (LPFN_GLPIEX) GetProcAddress( GetModuleHandleA( "kernel32" ), "GetLogicalProcessorInformationEx" );
-    if ( 0 == glpi ) 
+    if ( 0 == glpi )
     {
         printf( "GetLogicalProcessorInformationEx is not supported.\n" );
         return false;
@@ -550,22 +707,22 @@ bool AttemptNewAPIForProcessorInfo()
     {
         DWORD rc = glpi( RelationAll, buffer, &returnLength );
 
-        if ( FALSE == rc ) 
+        if ( FALSE == rc )
         {
-            if ( GetLastError() == ERROR_INSUFFICIENT_BUFFER ) 
+            if ( GetLastError() == ERROR_INSUFFICIENT_BUFFER )
             {
-                if ( buffer ) 
+                if ( buffer )
                     free( buffer );
 
                 buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) malloc( returnLength );
                 memset( buffer, 0, returnLength );
-            } 
-            else 
+            }
+            else
             {
                 printf( "\nError %d\n", GetLastError() );
                 return false;
             }
-        } 
+        }
         else
         {
             done = TRUE;
@@ -593,7 +750,7 @@ bool AttemptNewAPIForProcessorInfo()
     {
         PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ptr = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) pNext;
 
-        switch ( ptr->Relationship ) 
+        switch ( ptr->Relationship )
         {
             case RelationNumaNode:
             {
@@ -639,9 +796,9 @@ bool AttemptNewAPIForProcessorInfo()
             case RelationCache:
             {
                 // Cache data is in ptr->Cache, one CACHE_DESCRIPTOR structure for each cache.
-    
+
                 CACHE_RELATIONSHIP & cache = ptr->Cache;
-    
+
                 DWORD level = cache.Level;
                 DWORD type = cache.Type;
                 if ( level > 3 || type > 3 )
@@ -725,7 +882,7 @@ bool AttemptNewAPIForProcessorInfo()
         printf( "  core count / efficiency / hyperthreads:  %d / %d%s / %s\n",
                 prcounts[ x ],
                 pr.EfficiencyClass,
-                ( 0 == maxEfficiency ) ? "" : 
+                ( 0 == maxEfficiency ) ? "" :
                     ( 0 == pr.EfficiencyClass ) ? " (slower)" : " (faster)",
                 0 == pr.Flags ? "no" : LTP_PC_SMT == pr.Flags ? "yes" : "unknown" );
         processorCount += prcounts[ x ];
@@ -750,7 +907,7 @@ bool AttemptNewAPIForProcessorInfo()
         }
         printf( "\n" );
     }
-    
+
     free( buffer );
 
     return true;
@@ -761,7 +918,7 @@ bool AttemptOldAPIForProcessorInfo()
     DWORD returnLength = 0;
     typedef BOOL ( WINAPI *LPFN_GLPI )( PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD );
     LPFN_GLPI glpi = (LPFN_GLPI) GetProcAddress( GetModuleHandleA( "kernel32" ), "GetLogicalProcessorInformation" );
-    if ( 0 == glpi ) 
+    if ( 0 == glpi )
     {
         printf( "GetLogicalProcessorInformation is not supported.\n" );
         return false;
@@ -773,22 +930,22 @@ bool AttemptOldAPIForProcessorInfo()
     {
         DWORD rc = glpi( buffer, &returnLength );
 
-        if ( FALSE == rc ) 
+        if ( FALSE == rc )
         {
-            if ( GetLastError() == ERROR_INSUFFICIENT_BUFFER ) 
+            if ( GetLastError() == ERROR_INSUFFICIENT_BUFFER )
             {
-                if ( buffer ) 
+                if ( buffer )
                     free( buffer );
 
                 buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION) malloc( returnLength );
                 memset( buffer, 0, returnLength );
-            } 
-            else 
+            }
+            else
             {
                 printf( "\nError %d\n", GetLastError() );
                 return false;
             }
-        } 
+        }
         else
         {
             done = TRUE;
@@ -807,9 +964,9 @@ bool AttemptOldAPIForProcessorInfo()
     PCACHE_DESCRIPTOR Cache;
     bool shownL1 = false, shownL2 = false, shownL3 = false;
 
-    while ( byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength ) 
+    while ( byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength )
     {
-        switch (ptr->Relationship) 
+        switch (ptr->Relationship)
         {
             case RelationNumaNode:
             {
@@ -819,7 +976,7 @@ bool AttemptOldAPIForProcessorInfo()
             case RelationProcessorCore:
             {
                 processorCoreCount++;
-    
+
                 // A hyperthreaded core supplies more than one logical processor.
 
                 logicalProcessorCount += CountSetBits( ptr->ProcessorMask );
@@ -827,7 +984,7 @@ bool AttemptOldAPIForProcessorInfo()
             }
             case RelationCache:
             {
-                // Cache data is in ptr->Cache, one CACHE_DESCRIPTOR structure for each cache. 
+                // Cache data is in ptr->Cache, one CACHE_DESCRIPTOR structure for each cache.
                 Cache = &ptr->Cache;
                 if ( 1 == Cache->Level )
                 {
@@ -881,7 +1038,7 @@ bool AttemptOldAPIForProcessorInfo()
     printf( "  number of physical processor packages:   %d\n", processorPackageCount);
     printf( "  number of cores / processor units:       %d\n", processorCoreCount );
     printf( "  number of logical processors:            %d\n", logicalProcessorCount );
-    
+
     free( buffer );
 
     return true;
@@ -1049,12 +1206,12 @@ bool GetDriveInformation( char * pcDriveName, bool & supportsTrim, bool & seekPe
 VOID VolumeInfo( char * pcDriveName )
 {
     char acVolume[50], acFS[50];
-  
+
     if ( GetVolumeInformationA( pcDriveName, acVolume, sizeof( acVolume ), 0, 0, 0, acFS, sizeof( acFS ) ) )
         printf( "  %5s %24s", acFS, acVolume );
     else
         printf( "      ?                                                         " );
-  
+
     DWORD dwSPerC,dwBPerS,dwFreeClusters,dwClusters;
 
     char ac[ 100 ];
@@ -1175,6 +1332,106 @@ void ShowDrives()
     }
 } //ShowDrives
 
+#define pm( x ) ( x ? '+' : '-' )
+
+bool ShowHypervisorInfo()
+{
+    typedef HRESULT ( WINAPI *LPFN_WHGC )( WHV_CAPABILITY_CODE, PVOID, UINT32, UINT32 * );
+    HMODULE hmod = LoadLibraryA( "WinHvPlatform.dll" );
+    if ( 0 == hmod )
+    {
+        //printf( "\nCan't LoadLibrary WinHvPlatform.dll, error %d.\n", GetLastError() );
+        return false;
+    }
+
+    LPFN_WHGC whgc = (LPFN_WHGC) GetProcAddress( hmod, "WHvGetCapability" );
+    if ( 0 == whgc )
+    {
+        printf( "\nWHvGetCapability is not supported, error %d.\n", GetLastError() );
+        FreeLibrary( hmod );
+        return false;
+    }
+
+    WHV_CAPABILITY cap = { 0 };
+    UINT32 cbWritten = 0;
+    HRESULT hr = whgc( WHvCapabilityCodeHypervisorPresent, & cap, sizeof( cap ), & cbWritten );
+    if ( S_OK == hr )
+    {
+        printf( "hypervisor information via WHvGetCapability:\n" );
+        printf( "  hypervisor present:                      %s\n", cap.HypervisorPresent ? "true" : "false" );
+
+        if ( !cap.HypervisorPresent )
+            return true;
+    }
+    else
+    {
+        printf( "WHvGetCapability WHvCapabilityCodeHypervisorPresent failed with error %#x\n", hr );
+        FreeLibrary( hmod );
+        return false;
+    }
+
+    cbWritten = 0;
+    hr = whgc( WHvCapabilityCodeFeatures, & cap, sizeof( cap ), & cbWritten );
+    if ( S_OK == hr )
+    {
+        printf( "  partial unmap:                           %s\n", cap.Features.PartialUnmap ? "true" : "false" );
+        printf( "  local apic emulation:                    %s\n", cap.Features.LocalApicEmulation ? "true" : "false" );
+        printf( "  xsave:                                   %s\n", cap.Features.Xsave ? "true" : "false" );
+        printf( "  dirty page tracking:                     %s\n", cap.Features.DirtyPageTracking ? "true" : "false" );
+        printf( "  speculation control:                     %s\n", cap.Features.SpeculationControl ? "true" : "false" );
+    }
+    else
+    {
+        printf( "WHvGetCapability WHvCapabilityCodeFeatures failed with error %#x\n", hr );
+        FreeLibrary( hmod );
+        return false;
+    }
+
+    cbWritten = 0;
+    hr = whgc( WHvCapabilityCodeProcessorVendor, & cap, sizeof( cap ), & cbWritten );
+    if ( S_OK == hr )
+    {
+        UINT64 v = cap.ProcessorVendor;
+        printf( "  processor vendor:                        %llu == %s\n", v, ( 0 == v ) ? "AMD" : ( 1 == v ) ? "Intel" : ( 2 == v ) ? "Hygon" : "unknown" );
+    }
+    else
+    {
+        printf( "WHvGetCapability WHvCapabilityCodeProcessorVendor failed with error %#x\n", hr );
+        FreeLibrary( hmod );
+        return false;
+    }
+
+    cbWritten = 0;
+    hr = whgc( WHvCapabilityCodeProcessorFeatures, & cap, sizeof( cap ), & cbWritten );
+    if ( S_OK == hr )
+    {
+        WHV_PROCESSOR_FEATURES f = cap.ProcessorFeatures;
+        printf( "  processor features:                      " );
+        printf( "Sse3%c, LahfSahf%c, Ssse3%c, Sse4_1%c, Sse4_2%c, Sse4a%c, Xop%c, PopCnt%c\n",
+                pm( f.Sse3Support ), pm( f.LahfSahfSupport ), pm( f.Ssse3Support ), pm( f.Sse4_1Support ), pm( f.Sse4_2Support ), pm( f.Sse4aSupport ), pm( f.XopSupport ), pm( f.PopCntSupport ) );
+        printf( "                                           " );
+        printf( "Cmpxchg16b%c, Altmovcr8%c, Lzcnt%c, MisAlignSse%c, MmxExt%c, Amd3DNow%c, ExtendedAmd3DNow%c, Page1GB%c, Aes%c\n",
+                pm( f.Cmpxchg16bSupport ), pm( f.Altmovcr8Support ), pm( f.LzcntSupport ), pm( f.MisAlignSseSupport ),
+                pm( f.MmxExtSupport ), pm( f.Amd3DNowSupport ), pm( f.ExtendedAmd3DNowSupport ), pm( f.Page1GbSupport ), pm( f.AesSupport ) );
+        printf( "                                           " );
+        printf( "Pclmulqdq%c, Pcid%c, Fma4%c, F16C%c, RdRand%c, RdWrFsGs%c, Smep%c, EnhancedFastString%c, Bmi1%c, Bmi2%c\n",
+                pm( f.PclmulqdqSupport ), pm( f.PcidSupport ), pm( f.Fma4Support ), pm( f.F16CSupport ), pm( f.RdRandSupport ),
+                pm( f.RdWrFsGsSupport ), pm( f.SmepSupport ), pm( f.EnhancedFastStringSupport ), pm( f.Bmi1Support ), pm( f.Bmi2Support ) );
+        printf( "                                           " );
+        printf( "Movbe%c, DepX87FPUSave%c, RdSeed%c, Adx%c, IntelPrefetch%c, Smap%c, Hle%c, Rtm%c, Rdtscp%c, Clflushopt%c, Clwb%c, Sha%c\n",
+                pm( f.MovbeSupport ), pm( f.DepX87FPUSaveSupport ), pm( f.RdSeedSupport ), pm( f.AdxSupport ), pm( f.IntelPrefetchSupport ), pm( f.SmapSupport ),
+                pm( f.HleSupport ), pm( f.RtmSupport ), pm( f.RdtscpSupport ), pm( f.ClflushoptSupport ), pm( f.ClwbSupport ), pm( f.ShaSupport ) );
+    }
+    else
+    {
+        printf( "WHvGetCapability WHvCapabilityCodeProcessorVendor failed with error %#x\n", hr );
+        FreeLibrary( hmod );
+        return false;
+    }
+
+    return true;
+} //ShowHypervisorInfo
+
 bool ShowCPUSpeed()
 {
     typedef HRESULT ( WINAPI *LPFN_CNTPI )( POWER_INFORMATION_LEVEL, PVOID, ULONG, PVOID, ULONG );
@@ -1186,7 +1443,7 @@ bool ShowCPUSpeed()
     }
 
     LPFN_CNTPI cntpi = (LPFN_CNTPI) GetProcAddress( hmod, "CallNtPowerInformation" );
-    if ( 0 == cntpi ) 
+    if ( 0 == cntpi )
     {
         printf( "\nCallNtPowerInformation is not supported, error %d.\n", GetLastError() );
         FreeLibrary( hmod );
@@ -1202,9 +1459,10 @@ bool ShowCPUSpeed()
     {
         printf( "cpu speed via CallNtPowerInformation:\n" );
 
-        // Note: on the AMD 5950x all three of the values are identical. On Intel CPUs these work.
+        // Note: on the AMD 5950x all three of the values are identical. On Intel CPUs these sometimes work.
+        // Just show the first one.
 
-        for ( DWORD i = 0; i < 1 && i < si.dwNumberOfProcessors; i++ )
+        for ( DWORD i = 0; i < 1; i++ )
         {
             printf( "  Mhz current:                             %d\n", ppi[i].CurrentMhz );
             printf( "  Mhz max:                                 %d\n", ppi[i].MaxMhz );
@@ -1324,7 +1582,7 @@ void ShowNetworkAdapters()
                                                                                       pAdapter->IpAddressList.IpMask.String,
                                                                                       pAdapter->GatewayList.IpAddress.String,
                                                                                       pAdapter->DhcpEnabled ? "true" : "false" );
-                                                              
+
             printf( "    adapter (mac) address:                 " );
             for ( int i = 0; i < pAdapter->AddressLength; i++ )
             {
@@ -1588,7 +1846,7 @@ void ShowMonitors()
             printf( "\nCan't LoadLibrary user32.dll, error %d.\n", GetLastError() );
             return;
         }
-    
+
         typedef HRESULT ( WINAPI *LPFN_EDM )( HDC, LPCRECT, MONITORENUMPROC, LPARAM );
         LPFN_EDM edm = (LPFN_EDM) GetProcAddress( hmodUser32, "EnumDisplayMonitors" );
         if ( edm )
@@ -1598,7 +1856,7 @@ void ShowMonitors()
         }
         else
             printf( "Can't get proc address of EnumDisplayMonitors\n" );
-    
+
         FreeLibrary( hmodUser32 );
     }
 
@@ -1609,7 +1867,7 @@ void ShowMonitors()
             printf( "Can't LoadLibrary kernelbase.dll, error %d.\n", GetLastError() );
             return;
         }
-    
+
         typedef HRESULT ( WINAPI *LPFN_GIDS )( double * );
         LPFN_GIDS gids = (LPFN_GIDS) GetProcAddress( hmodKernelBase, "GetIntegratedDisplaySize" );
         if ( gids )
@@ -1624,7 +1882,7 @@ void ShowMonitors()
         }
         else
             printf( "Can't get proc address of GetIntegratedDisplaySize\n" );
-    
+
         FreeLibrary( hmodKernelBase );
     }
 } //ShowMonitors
@@ -1893,18 +2151,18 @@ void ShowCPUID()
         if ( 0 != eax )
         {
             printf( "  l1 2 and 4 meg cache and tlb identifiers:\n" );
-    
+
             unsigned int assocL1 = ( eax >> 24 ) & 0xff;
             printf( "    data associativity:                    " );
             ShowAssoc( assocL1 );
-    
+
             unsigned int twoMBTLB = ( eax >> 16 ) & 0xff;
             printf( "    data tlb entries for 2mb pages:        %d\n", twoMBTLB );
-    
+
             assocL1 = ( eax >> 8 ) & 0xff;
             printf( "    code associativity:                    " );
             ShowAssoc( assocL1 );
-    
+
             twoMBTLB = eax & 0xff;
             printf( "    code tlb entries for 2mb pages:        %d\n", twoMBTLB );
         }
@@ -1915,18 +2173,18 @@ void ShowCPUID()
         if ( 0 != ebx )
         {
             printf( "  l1 4k page cache and tlb identifiers:\n" );
-    
+
             unsigned int assocL1 = ( ebx >> 24 ) & 0xff;
             printf( "    data associativity:                    " );
             ShowAssoc( assocL1 );
-    
+
             unsigned int fourkSize = ( ebx >> 16 ) & 0xff;
             printf( "    data 4k tlb entries:                   %d\n", fourkSize );
-    
+
             assocL1 = ( ebx >> 8 ) & 0xff;
             printf( "    code associativity:                    " );
             ShowAssoc( assocL1 );
-    
+
             fourkSize = ebx & 0xff;
             printf( "    code 4k tlb entries:                   %d\n", fourkSize );
         }
@@ -1937,17 +2195,17 @@ void ShowCPUID()
         if ( 0 != ecx )
         {
             printf( "  l1 data cache and identifiers:\n" );
-    
+
             unsigned int sizeK = ( ecx >> 24 ) & 0xff;
             printf( "    data size in kb:                       %d\n", sizeK );
-    
+
             unsigned int assoc = ( ecx >> 16 ) & 0xff;
             printf( "    data associativity:                    " );
             ShowAssoc( assoc );
-    
+
             unsigned int cachelines = ( ecx >> 8 ) & 0xff;
             printf( "    cache lines per tag:                   %d\n", cachelines );
-    
+
             unsigned cachelinesize = ecx & 0xff;
             printf( "    cache line size:                       %d\n", cachelinesize );
         }
@@ -1958,17 +2216,17 @@ void ShowCPUID()
         if ( 0 != edx )
         {
             printf( "  l1 code cache and identifiers:\n" );
-    
+
             unsigned int sizeK = ( edx >> 24 ) & 0xff;
             printf( "    code size in kb:                       %d\n", sizeK );
-    
+
             unsigned int assoc = ( edx >> 16 ) & 0xff;
             printf( "    code associativity:                    " );
             ShowAssoc( assoc );
-    
+
             unsigned int cachelines = ( edx >> 8 ) & 0xff;
             printf( "    cache lines per tag:                   %d\n", cachelines );
-    
+
             unsigned cachelinesize = edx & 0xff;
             printf( "    cache line size:                       %d\n", cachelinesize );
         }
@@ -1982,12 +2240,12 @@ void ShowCPUID()
         if ( 0 != eax && ( !strcmp( cpumake, "AuthenticAMD" ) ) )
         {
             printf( "  l2 cache 2 and 4 mb:\n" );
-    
+
             unsigned int l2_2and4megDataAssoc = ( eax >> 28 ) & 0xf;
             unsigned int l2_2and4megDataTLB = ( eax >> 16 ) & 0xfff;
             printf( "    data associativity:                    %d == %s\n", l2_2and4megDataAssoc, L23Assoc[ l2_2and4megDataAssoc ] );
             printf( "    data tlb entries for 2mb pages:        %d\n", l2_2and4megDataTLB );
-    
+
             unsigned int l2_2and4megCodeAssoc = ( eax >> 12 ) & 0xf;
             unsigned int l2_2and4megCodeTLB = ( eax ) & 0xfff;
             printf( "    code associativity:                    %d == %s\n", l2_2and4megCodeAssoc, L23Assoc[ l2_2and4megCodeAssoc ] );
@@ -1998,12 +2256,12 @@ void ShowCPUID()
         if ( 0 != ebx && ( !strcmp( cpumake, "AuthenticAMD" ) ) )
         {
             printf( "  l2 cache for 4kb pages:\n" );
-    
+
             unsigned int l2_4kDataAssoc = ( ebx >> 28 ) & 0xf;
             unsigned int l2_4kDataTLB = ( ebx >> 16 ) & 0xfff;
             printf( "    data associativity:                    %d == %s\n", l2_4kDataAssoc, L23Assoc[ l2_4kDataAssoc ] );
             printf( "    data tlb entries for 4k pages:         %d\n", l2_4kDataTLB );
-    
+
             unsigned int l2_4kCodeAssoc = ( ebx >> 12 ) & 0xf;
             unsigned int l2_4kCodeTLB = ( ebx ) & 0xfff;
             printf( "    code associativity:                    %d == %s\n", l2_4kCodeAssoc, L23Assoc[ l2_4kCodeAssoc ] );
@@ -2058,7 +2316,7 @@ void ShowCPUID()
             int physicalCoreCount = 1 + ( ecx & 0xff );
             printf( "  AMD physical / logical cores:            %d / %d\n", physicalCoreCount,
                     hyperThreadingAvailable ? 2 * physicalCoreCount : physicalCoreCount );
-    
+
             int log2MaxApicId = ( ( ecx >> 12 ) & 0xf );
             printf( "  log2 of max apic id:                     %d\n", log2MaxApicId );
         }
@@ -2292,12 +2550,12 @@ void ShowGraphicsAdapters()
                 {
                     IDXGIAdapter * pAdapter = 0;
                     hr = pFactory->EnumAdapters( i, &pAdapter );
-            
+
                     if ( hr == DXGI_ERROR_NOT_FOUND )
                         break;
 
                     printf( "  display adapter %u:\n", i );
-            
+
                     DXGI_ADAPTER_DESC adapterDesc; // modern memory sizes don't fit in 4 bytes for 32-bit versions of SI.
                     hr = pAdapter->GetDesc( &adapterDesc );
                     if ( SUCCEEDED( hr ) )
@@ -2310,7 +2568,7 @@ void ShowGraphicsAdapters()
                     }
                     else
                         printf( "    can't get display adapter desc, error %#x\n", hr );
-            
+
                     i++;
                 } while( true );
             }
@@ -2387,6 +2645,7 @@ int main( int argc, char * argv[] )
     ShowCPUSpeed();
     ShowSystemInfo();
     ShowArchitectureInfo();
+    ShowHypervisorInfo();
     ShowNetworkAdapters();
     ShowGraphicsAdapters();
     ShowMonitors();
