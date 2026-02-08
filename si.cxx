@@ -2544,7 +2544,7 @@ void ShowGraphicsAdapters()
                 printf( "unable to create DXGIFactory, error %#x\n", hr );
             else
             {
-                printf( "display adapters:\n" );
+                printf( "display adapters via IDXGIFactory::EnumAdapters:\n" );
                 UINT i = 0;
                 do
                 {
